@@ -9553,6 +9553,7 @@ int Abc_CommandMiter( Abc_Frame_t * pAbc, int argc, char ** argv )
 
     pArgvNew = argv + globalUtilOptind;
     nArgcNew = argc - globalUtilOptind;
+    Abc_Print( 1, "Zuzak! %d %s\n", nArgcNew, pArgvNew );
     if ( !Abc_NtkPrepareTwoNtks( stdout, pNtk, pArgvNew, nArgcNew, &pNtk1, &pNtk2, &fDelete1, &fDelete2, 1 ) )
         return 1;
 
@@ -11693,7 +11694,8 @@ int Abc_CommandCone( Abc_Frame_t * pAbc, int argc, char ** argv )
     pNodeCo = NULL;
     if ( argc == globalUtilOptind + 1 )
     {
-        pNode = Abc_NtkFindNode( pNtk, argv[globalUtilOptind] );
+      Abc_Print(0, "Zuzak here 1.\n");
+      pNode = Abc_NtkFindNode( pNtk, argv[globalUtilOptind] );
         if ( pNode == NULL )
         {
             Abc_Print( -1, "Cannot find node \"%s\".\n", argv[globalUtilOptind] );
@@ -11701,8 +11703,10 @@ int Abc_CommandCone( Abc_Frame_t * pAbc, int argc, char ** argv )
         }
         if ( fUseMffc )
             pNtkRes = Abc_NtkCreateMffc( pNtk, pNode, argv[globalUtilOptind] );
-        else
+        else {
+	  Abc_Print(0, "Zuzak here 2.\n");
             pNtkRes = Abc_NtkCreateCone( pNtk, pNode, argv[globalUtilOptind], fUseAllCis );
+	}
     }
     else
     {
@@ -11726,6 +11730,7 @@ int Abc_CommandCone( Abc_Frame_t * pAbc, int argc, char ** argv )
     }
     if ( pNodeCo && Abc_ObjFaninC0(pNodeCo) && !fSeq )
     {
+      Abc_Print(0, "Zuzak here 3.\n");
         Abc_NtkPo(pNtkRes, 0)->fCompl0  ^= 1;
 //        Abc_Print( -1, "The extracted cone represents the complement function of the CO.\n" );
     }

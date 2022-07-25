@@ -401,6 +401,291 @@ int Abc_NtkAppend( Abc_Ntk_t * pNtk1, Abc_Ntk_t * pNtk2, int fAddPos )
 
 /**Function*************************************************************
 
+  Synopsis    [Appends the second network to the first.]
+
+  Description [Modifies the first network by adding the logic of the second. 
+  Performs structural hashing while appending the networks. Does not change 
+  the second network. Returns 0 if the appending failed, 1 otherise.]
+               
+  SideEffects []
+
+  SeeAlso     []
+
+***********************************************************************/
+int Abc_NtkAppendSilent( Abc_Ntk_t * pNtk1, Abc_Ntk_t * pNtk2, int fAddPos )
+{
+    Abc_Obj_t * pObj;
+    char * pName;
+    int i, nNewCis;
+    // the first network should be an AIG
+    assert( Abc_NtkIsStrash(pNtk1) );
+    assert( Abc_NtkIsLogic(pNtk2) || Abc_NtkIsStrash(pNtk2) ); 
+    if ( Abc_NtkIsLogic(pNtk2) && !Abc_NtkToAig(pNtk2) )
+    {
+        printf( "Converting to AIGs has failed.\n" );
+        return 0;
+    }
+    // check that the networks have the same PIs
+    // reorder PIs of pNtk2 according to pNtk1
+    //if ( !Abc_NtkCompareSignals( pNtk1, pNtk2, 1, 1 ) )
+    //    printf( "Abc_NtkAppend(): The union of the network PIs is computed (warning).\n" );
+    // perform strashing
+    nNewCis = 0;
+    Abc_NtkCleanCopy( pNtk2 );
+    if ( Abc_NtkIsStrash(pNtk2) )
+        Abc_AigConst1(pNtk2)->pCopy = Abc_AigConst1(pNtk1);
+    Abc_NtkForEachCi( pNtk2, pObj, i )
+    {
+        pName = Abc_ObjName(pObj);
+        pObj->pCopy = Abc_NtkFindCi(pNtk1, Abc_ObjName(pObj));
+        if ( pObj->pCopy == NULL )
+        {
+            pObj->pCopy = Abc_NtkDupObj(pNtk1, pObj, 1);
+            nNewCis++;
+        }
+    }
+    //if ( nNewCis )
+    //    printf( "Warning: Procedure Abc_NtkAppend() added %d new CIs.\n", nNewCis );
+    // add pNtk2 to pNtk1 while strashing
+    if ( Abc_NtkIsLogic(pNtk2) )
+        Abc_NtkStrashPerform( pNtk2, pNtk1, 1, 0 );
+    else
+        Abc_NtkForEachNode( pNtk2, pObj, i )
+            pObj->pCopy = Abc_AigAnd( (Abc_Aig_t *)pNtk1->pManFunc, Abc_ObjChild0Copy(pObj), Abc_ObjChild1Copy(pObj) );
+    // add the COs of the second network
+    if ( fAddPos )
+    {
+        Abc_NtkForEachPo( pNtk2, pObj, i )
+        {
+            Abc_NtkDupObj( pNtk1, pObj, 0 );
+            Abc_ObjAddFanin( pObj->pCopy, Abc_ObjChild0Copy(pObj) );
+            Abc_ObjAssignName( pObj->pCopy, Abc_ObjName(pObj), NULL );
+        }
+    }
+    else
+    {
+        Abc_Obj_t * pObjOld, * pDriverOld, * pDriverNew;
+        int fCompl, iNodeId;
+        // OR the choices
+        Abc_NtkForEachCo( pNtk2, pObj, i )
+        {
+            iNodeId = Nm_ManFindIdByNameTwoTypes( pNtk1->pManName, Abc_ObjName(pObj), ABC_OBJ_PO, ABC_OBJ_BI );
+//            if ( iNodeId < 0 )
+//                continue;
+            assert( iNodeId >= 0 );
+            pObjOld = Abc_NtkObj( pNtk1, iNodeId );
+            // derive the new driver
+            pDriverOld = Abc_ObjChild0( pObjOld );
+            pDriverNew = Abc_ObjChild0Copy( pObj );
+            pDriverNew = Abc_AigOr( (Abc_Aig_t *)pNtk1->pManFunc, pDriverOld, pDriverNew );
+            if ( Abc_ObjRegular(pDriverOld) == Abc_ObjRegular(pDriverNew) )
+                continue;
+            // replace the old driver by the new driver
+            fCompl = Abc_ObjRegular(pDriverOld)->fPhase ^ Abc_ObjRegular(pDriverNew)->fPhase;
+            Abc_ObjPatchFanin( pObjOld, Abc_ObjRegular(pDriverOld), Abc_ObjNotCond(Abc_ObjRegular(pDriverNew), fCompl) );
+        }
+    }
+    // make sure that everything is okay
+    if ( !Abc_NtkCheck( pNtk1 ) )
+    {
+        printf( "Abc_NtkAppend: The network check has failed.\n" );
+        return 0;
+    }
+    return 1;
+}
+
+/**Function*************************************************************
+
+  Synopsis    [Appends the second network to the first.]
+
+  Description [Modifies the first network by adding the logic of the second. 
+  Performs structural hashing while appending the networks. Does not change 
+  the second network. Returns 0 if the appending failed, 1 otherise.]
+               
+  SideEffects []
+
+  SeeAlso     []
+
+***********************************************************************/
+int Abc_NtkAppendSilentXor( Abc_Ntk_t * pNtk1, Abc_Ntk_t * pNtk2, int fAddPos )
+{
+    Abc_Obj_t * pObj;
+    char * pName;
+    int i, nNewCis;
+    // the first network should be an AIG
+    assert( Abc_NtkIsStrash(pNtk1) );
+    assert( Abc_NtkIsLogic(pNtk2) || Abc_NtkIsStrash(pNtk2) ); 
+    if ( Abc_NtkIsLogic(pNtk2) && !Abc_NtkToAig(pNtk2) )
+    {
+        printf( "Converting to AIGs has failed.\n" );
+        return 0;
+    }
+    // check that the networks have the same PIs
+    // reorder PIs of pNtk2 according to pNtk1
+    //if ( !Abc_NtkCompareSignals( pNtk1, pNtk2, 1, 1 ) )
+    //    printf( "Abc_NtkAppend(): The union of the network PIs is computed (warning).\n" );
+    // perform strashing
+    nNewCis = 0;
+    Abc_NtkCleanCopy( pNtk2 );
+    if ( Abc_NtkIsStrash(pNtk2) )
+        Abc_AigConst1(pNtk2)->pCopy = Abc_AigConst1(pNtk1);
+    Abc_NtkForEachCi( pNtk2, pObj, i )
+    {
+        pName = Abc_ObjName(pObj);
+        pObj->pCopy = Abc_NtkFindCi(pNtk1, Abc_ObjName(pObj));
+        if ( pObj->pCopy == NULL )
+        {
+            pObj->pCopy = Abc_NtkDupObj(pNtk1, pObj, 1);
+            nNewCis++;
+        }
+    }
+    //if ( nNewCis )
+    //    printf( "Warning: Procedure Abc_NtkAppend() added %d new CIs.\n", nNewCis );
+    // add pNtk2 to pNtk1 while strashing
+    if ( Abc_NtkIsLogic(pNtk2) )
+        Abc_NtkStrashPerform( pNtk2, pNtk1, 1, 0 );
+    else
+        Abc_NtkForEachNode( pNtk2, pObj, i )
+            pObj->pCopy = Abc_AigAnd( (Abc_Aig_t *)pNtk1->pManFunc, Abc_ObjChild0Copy(pObj), Abc_ObjChild1Copy(pObj) );
+    // add the COs of the second network
+    if ( fAddPos )
+    {
+        Abc_NtkForEachPo( pNtk2, pObj, i )
+        {
+            Abc_NtkDupObj( pNtk1, pObj, 0 );
+            Abc_ObjAddFanin( pObj->pCopy, Abc_ObjChild0Copy(pObj) );
+            Abc_ObjAssignName( pObj->pCopy, Abc_ObjName(pObj), NULL );
+        }
+    }
+    else
+    {
+        Abc_Obj_t * pObjOld, * pDriverOld, * pDriverNew;
+        int fCompl, iNodeId;
+        // OR the choices
+        Abc_NtkForEachCo( pNtk2, pObj, i )
+        {
+            iNodeId = Nm_ManFindIdByNameTwoTypes( pNtk1->pManName, Abc_ObjName(pObj), ABC_OBJ_PO, ABC_OBJ_BI );
+//            if ( iNodeId < 0 )
+//                continue;
+            assert( iNodeId >= 0 );
+            pObjOld = Abc_NtkObj( pNtk1, iNodeId );
+            // derive the new driver
+            pDriverOld = Abc_ObjChild0( pObjOld );
+            pDriverNew = Abc_ObjChild0Copy( pObj );
+            pDriverNew = Abc_AigXor( (Abc_Aig_t *)pNtk1->pManFunc, pDriverOld, pDriverNew );
+            if ( Abc_ObjRegular(pDriverOld) == Abc_ObjRegular(pDriverNew) )
+                continue;
+            // replace the old driver by the new driver
+            fCompl = Abc_ObjRegular(pDriverOld)->fPhase ^ Abc_ObjRegular(pDriverNew)->fPhase;
+            Abc_ObjPatchFanin( pObjOld, Abc_ObjRegular(pDriverOld), Abc_ObjNotCond(Abc_ObjRegular(pDriverNew), fCompl) );
+        }
+    }
+    // make sure that everything is okay
+    if ( !Abc_NtkCheck( pNtk1 ) )
+    {
+        printf( "Abc_NtkAppend: The network check has failed.\n" );
+        return 0;
+    }
+    return 1;
+}
+
+/**Function*************************************************************
+
+  Synopsis    [Appends the second network to the first.]
+
+  Description [Modifies the first network by adding the logic of the second. 
+  Performs structural hashing while appending the networks. Does not change 
+  the second network. Returns 0 if the appending failed, 1 otherise.]
+               
+  SideEffects []
+
+  SeeAlso     []
+
+***********************************************************************/
+int Abc_NtkAppendSilentAnd( Abc_Ntk_t * pNtk1, Abc_Ntk_t * pNtk2, int fAddPos )
+{
+    Abc_Obj_t * pObj;
+    char * pName;
+    int i, nNewCis;
+    // the first network should be an AIG
+    assert( Abc_NtkIsStrash(pNtk1) );
+    assert( Abc_NtkIsLogic(pNtk2) || Abc_NtkIsStrash(pNtk2) ); 
+    if ( Abc_NtkIsLogic(pNtk2) && !Abc_NtkToAig(pNtk2) )
+    {
+        printf( "Converting to AIGs has failed.\n" );
+        return 0;
+    }
+    // check that the networks have the same PIs
+    // reorder PIs of pNtk2 according to pNtk1
+    //if ( !Abc_NtkCompareSignals( pNtk1, pNtk2, 1, 1 ) )
+    //    printf( "Abc_NtkAppend(): The union of the network PIs is computed (warning).\n" );
+    // perform strashing
+    nNewCis = 0;
+    Abc_NtkCleanCopy( pNtk2 );
+    if ( Abc_NtkIsStrash(pNtk2) )
+        Abc_AigConst1(pNtk2)->pCopy = Abc_AigConst1(pNtk1);
+    Abc_NtkForEachCi( pNtk2, pObj, i )
+    {
+        pName = Abc_ObjName(pObj);
+        pObj->pCopy = Abc_NtkFindCi(pNtk1, Abc_ObjName(pObj));
+        if ( pObj->pCopy == NULL )
+        {
+            pObj->pCopy = Abc_NtkDupObj(pNtk1, pObj, 1);
+            nNewCis++;
+        }
+    }
+    //if ( nNewCis )
+    //    printf( "Warning: Procedure Abc_NtkAppend() added %d new CIs.\n", nNewCis );
+    // add pNtk2 to pNtk1 while strashing
+    if ( Abc_NtkIsLogic(pNtk2) )
+        Abc_NtkStrashPerform( pNtk2, pNtk1, 1, 0 );
+    else
+        Abc_NtkForEachNode( pNtk2, pObj, i )
+            pObj->pCopy = Abc_AigAnd( (Abc_Aig_t *)pNtk1->pManFunc, Abc_ObjChild0Copy(pObj), Abc_ObjChild1Copy(pObj) );
+    // add the COs of the second network
+    if ( fAddPos )
+    {
+        Abc_NtkForEachPo( pNtk2, pObj, i )
+        {
+            Abc_NtkDupObj( pNtk1, pObj, 0 );
+            Abc_ObjAddFanin( pObj->pCopy, Abc_ObjChild0Copy(pObj) );
+            Abc_ObjAssignName( pObj->pCopy, Abc_ObjName(pObj), NULL );
+        }
+    }
+    else
+    {
+        Abc_Obj_t * pObjOld, * pDriverOld, * pDriverNew;
+        int fCompl, iNodeId;
+        // OR the choices
+        Abc_NtkForEachCo( pNtk2, pObj, i )
+        {
+            iNodeId = Nm_ManFindIdByNameTwoTypes( pNtk1->pManName, Abc_ObjName(pObj), ABC_OBJ_PO, ABC_OBJ_BI );
+//            if ( iNodeId < 0 )
+//                continue;
+            assert( iNodeId >= 0 );
+            pObjOld = Abc_NtkObj( pNtk1, iNodeId );
+            // derive the new driver
+            pDriverOld = Abc_ObjChild0( pObjOld );
+            pDriverNew = Abc_ObjChild0Copy( pObj );
+            pDriverNew = Abc_AigAnd( (Abc_Aig_t *)pNtk1->pManFunc, pDriverOld, pDriverNew );
+            if ( Abc_ObjRegular(pDriverOld) == Abc_ObjRegular(pDriverNew) )
+                continue;
+            // replace the old driver by the new driver
+            fCompl = Abc_ObjRegular(pDriverOld)->fPhase ^ Abc_ObjRegular(pDriverNew)->fPhase;
+            Abc_ObjPatchFanin( pObjOld, Abc_ObjRegular(pDriverOld), Abc_ObjNotCond(Abc_ObjRegular(pDriverNew), fCompl) );
+        }
+    }
+    // make sure that everything is okay
+    if ( !Abc_NtkCheck( pNtk1 ) )
+    {
+        printf( "Abc_NtkAppend: The network check has failed.\n" );
+        return 0;
+    }
+    return 1;
+}
+
+/**Function*************************************************************
+
   Synopsis    [Prepares the network for strashing.]
 
   Description []
