@@ -1,5 +1,11 @@
 //
-// Zuzak Test File
+// Open-Source ABC Command for the Physical Portion of CLAP Attack
+// From: A Combined Logical and Physical Attack on Logic Obfuscation
+// Author: Michael Zuzak
+//
+// Note that the logical portion of the CLAP attack relies on the
+// open-source SAT attack released by Pramod et al in Host'15
+// (Evaluating the Security of Logic Locking)
 //
 
 #include "base/abc/abc.h"
@@ -239,9 +245,7 @@ int ClapAttack_ClapAttack(Abc_Frame_t * pAbc) {
     pNode->fMarkC = 0;
 
   MaxNodesConsidered = 2;
-  // Todo -> prevent re-traversal of nodes within an pass
-  // Todo -> second pass with known keys updated.
-  // Todo -> Handle known keys
+
   // Goal: Iterate through each PI. Identify list of keys.
   if(RunHeuristic) {
 
@@ -249,7 +253,7 @@ int ClapAttack_ClapAttack(Abc_Frame_t * pAbc) {
     
     while (1) {
       
-      for ( MaxKeysConsidered = 1; MaxKeysConsidered  < KeysConsideredCutoff; MaxKeysConsidered++ ) {
+      for ( MaxKeysConsidered = 1; MaxKeysConsidered < KeysConsideredCutoff; MaxKeysConsidered++ ) {
 
 	printf("Set Number of Keys considered to: %d\n\n", MaxKeysConsidered);
 	GlobalBsiKeys.Updated = 1;
@@ -3750,6 +3754,7 @@ int ClapAttack_RenameOutput( Abc_Ntk_t * pNtk, char *PoSuffix, int KeepName )
   return 0;
 }
 
+// Determine number of key inputs in network
 int ClapAttack_GetNumKeys( Abc_Ntk_t *pNtk ) {
   int i, NumKeys = 0;
   Abc_Obj_t *pPi;
@@ -3757,7 +3762,6 @@ int ClapAttack_GetNumKeys( Abc_Ntk_t *pNtk ) {
   Abc_NtkForEachPi( pNtk, pPi, i ) {
     // Are we looking at a key input?
     if( strstr(Abc_ObjName(pPi), "keyinput")) {
-      //Abc_Print(1, "match!: %d=%s\n", i, Abc_ObjName(pPi) );
       NumKeys++;
     }
   }
@@ -3765,6 +3769,7 @@ int ClapAttack_GetNumKeys( Abc_Ntk_t *pNtk ) {
   return NumKeys;
 }
 
+// Initialize keystore which holds known key bits generated from the CLAP attack.
 void ClapAttack_InitKeyStore( int NumKeys, struct BSI_KeyData_t *pGlobalBsiKeys ) {
   int i;
   
@@ -3779,6 +3784,7 @@ void ClapAttack_InitKeyStore( int NumKeys, struct BSI_KeyData_t *pGlobalBsiKeys 
   pGlobalBsiKeys->pKeyCnf = NULL;
 }
 
+// Create a duplciate copy of the known key values
 void ClapAttack_CopyKeyStore( struct BSI_KeyData_t *pGlobalBsiKeys, struct BSI_KeyData_t *pGlobalBsiKeysNew) {
   int i;
 
@@ -3791,6 +3797,10 @@ void ClapAttack_CopyKeyStore( struct BSI_KeyData_t *pGlobalBsiKeys, struct BSI_K
   }
 }
 
+// Similar to miterkeys, we must also miter the identical POs constructed in the
+// duplicated network in order to construct our SAT formultaion.
+// Essentially at t1/t2 the output must be different from the attacked node,
+// necessitating this miter circuit to be constructed to identify sensitizing inputs.
 int ClapAttack_MiterPos( Abc_Ntk_t * pNtk, int fXorOr, int fXnorAnd)
 {
   Abc_Obj_t * pNode, ** pMiterTmp, * pMiter;
@@ -3808,29 +3818,20 @@ int ClapAttack_MiterPos( Abc_Ntk_t * pNtk, int fXorOr, int fXnorAnd)
   pPos = (Abc_Obj_t **)malloc( sizeof( Abc_Obj_t * ) * NumPos);
   pMiterTmp = (Abc_Obj_t **)malloc( sizeof( Abc_Obj_t * ) * (NumPos)/2);
 
-  
-  // start the result -- Unclear why I need this not gate... (Zuzak)
-  //pMiter = Abc_ObjNot( Abc_AigConst1(pNtk) );
-
-  
   // Generate PO list
   Abc_NtkForEachPo( pNtk, pNode, i ) {
     pPos[i] = pNode;
   }
 
-  //ClapAttack_WriteMiterVerilog(pNtk, "test1.v");  
   for( i=0; i<(NumPos/2); i++ ) { 
     
-    //Abc_AigConst1(pNtk)->pCopy = Abc_AigConst1(pNtkMiter);
-    
-    // Generate miter connections between oones
+    // Generate miter connections between the 2 primary outputs with the same index at different times
     if ( fXorOr )
       pMiterTmp[i] = Abc_AigXor( (Abc_Aig_t *)pNtk->pManFunc, Abc_ObjChild0(pPos[i]), Abc_ObjChild0(pPos[i+(NumPos/2)]) );
     else 
       pMiterTmp[i] =  Abc_ObjNot( Abc_AigXor( (Abc_Aig_t *)pNtk->pManFunc, Abc_ObjChild0(pPos[i]), Abc_ObjChild0(pPos[i+(NumPos/2)]) ));
   }
 
-  //ClapAttack_WriteMiterVerilog(pNtk, "test2.v");
   // remove the POs and their names
   for ( i = Abc_NtkPoNum(pNtk) - 1; i >= 0; i-- )
     Abc_NtkDeleteObj( Abc_NtkPo(pNtk, i) );
@@ -3850,7 +3851,6 @@ int ClapAttack_MiterPos( Abc_Ntk_t * pNtk, int fXorOr, int fXnorAnd)
     Abc_NtkOrderCisCos( pNtk );
   }
 
-  //ClapAttack_WriteMiterVerilog(pNtk, "test3.v");
   // make sure that everything is okay
   if ( !Abc_NtkCheck( pNtk ) )
     {
@@ -3858,20 +3858,10 @@ int ClapAttack_MiterPos( Abc_Ntk_t * pNtk, int fXorOr, int fXnorAnd)
       return 0;
     }
   
-
-
-  //ClapAttack_WriteMiterVerilog(pNtk, "test4.v");
-  // Do the last miter...
-  // Check that we have an even number of Pos
-
-  // start the result -- Unclear why I need this not gate... (Zuzak)
-  //pMiter = Abc_ObjNot( Abc_AigConst1(pNtk) );
-  //pMiter = Abc_AigConst1(pNtk);
-  
   // Generate PO list
   Abc_NtkForEachPo( pNtk, pNode, i ) {
 
-    // Generate miter connections between oones
+    // Generate miter connections between the 2 copies of each key input
     if (i == 0) {
       pMiter = Abc_ObjChild0(pNode);
     } else {
@@ -3883,33 +3873,34 @@ int ClapAttack_MiterPos( Abc_Ntk_t * pNtk, int fXorOr, int fXnorAnd)
     }
   }
 
-  //ClapAttack_WriteMiterVerilog(pNtk, "test6.v");
-  
   // remove the POs and their names
   for ( i = Abc_NtkPoNum(pNtk) - 1; i >= 0; i-- )
     Abc_NtkDeleteObj( Abc_NtkPo(pNtk, i) );
   assert( Abc_NtkPoNum(pNtk) == 0 );
+
   // create the new PO
   pNode = Abc_NtkCreatePo( pNtk );
   Abc_ObjAddFanin( pNode, pMiter );
   Abc_ObjAssignName( pNode, "miter", NULL );
   Abc_NtkOrderCisCos( pNtk );
-  // make sure that everything is okay
 
-  //ClapAttack_WriteMiterVerilog(pNtk, "test7.v");
+  // make sure that everything is okay
   if ( !Abc_NtkCheck( pNtk ) )
     {
       printf( "Abc_NtkOrPos: The network check has failed.\n" );
       return 0;
     }
 
-
+  // Memory management...
   free(pPos);
   free(pMiterTmp);
   
   return 1;
 }
 
+// Miter key inputs -- We are constructing the key miter
+// That ensures that key1 and key2 satisfying the
+// CLAP formulation are different.
 int ClapAttack_MiterKeys( Abc_Ntk_t * pNtk )
 {
   Abc_Obj_t * pNode, ** pMiterTmp, * pMiter;
@@ -3953,10 +3944,11 @@ int ClapAttack_MiterKeys( Abc_Ntk_t * pNtk )
   }
 
 
+  // Find the key in each circuit that shares an index. They need to be mitered to guarantee that they differ.
   for( i=0; i<KeyIdx1; i++ ) { 
     for( j=0; j<KeyIdx2; j++ ) { 
 
-      // Generate miter connections between oones
+      // Generate miter connections between the two versions of the same key
       if ( !ClapAttack_CmpKeyName( Abc_ObjName(pKey1[i]), Abc_ObjName(pKey2[j]),  strlen(Abc_ObjName(pKey1[i])), strlen(Abc_ObjName(pKey2[j])) )) {
 	pMiterTmp[i] = Abc_AigXor( (Abc_Aig_t *)pNtk->pManFunc, pKey1[i], pKey2[j] );
 	break;
@@ -3969,7 +3961,7 @@ int ClapAttack_MiterKeys( Abc_Ntk_t * pNtk )
     Abc_NtkDeleteObj( Abc_NtkPo(pNtk, i) );
   assert( Abc_NtkPoNum(pNtk) == 0 );
 
-// create new POs
+  // create new POs
   for( i=0; i<(NumKeys/2); i++ ) { 
     pNode = Abc_NtkCreatePo( pNtk ); 
     Abc_ObjAddFanin( pNode, pMiterTmp[i] );
@@ -3982,24 +3974,12 @@ int ClapAttack_MiterKeys( Abc_Ntk_t * pNtk )
     Abc_NtkOrderCisCos( pNtk );
   }
 
-  //ClapAttack_WriteMiterVerilog(pNtk, "test3.v");
-  // make sure that everything is okay
+  // Make sure we did not damage the network while modifying it
   if ( !Abc_NtkCheck( pNtk ) )
     {
       printf( "Abc_NtkOrPos: The network check has failed.\n" );
       return 0;
     }
-  
-
-    
-
-  //ClapAttack_WriteMiterVerilog(pNtk, "test4.v");
-  // Do the last miter...
-  // Check that we have an even number of Pos
-
-  // start the result -- Unclear why I need this not gate... (Zuzak)
-  //pMiter = Abc_ObjNot( Abc_AigConst1(pNtk) );
-  //pMiter = Abc_AigConst1(pNtk);
   
   // Generate PO list
   Abc_NtkForEachPo( pNtk, pNode, i ) {
@@ -4011,27 +3991,26 @@ int ClapAttack_MiterKeys( Abc_Ntk_t * pNtk )
 	pMiter = Abc_AigOr( (Abc_Aig_t *)pNtk->pManFunc, pMiter, Abc_ObjChild0(pNode) );
     }
   }
-
-  //ClapAttack_WriteMiterVerilog(pNtk, "test6.v");
   
   // remove the POs and their names
   for ( i = Abc_NtkPoNum(pNtk) - 1; i >= 0; i-- )
     Abc_NtkDeleteObj( Abc_NtkPo(pNtk, i) );
   assert( Abc_NtkPoNum(pNtk) == 0 );
+
   // create the new PO
   pNode = Abc_NtkCreatePo( pNtk );
   Abc_ObjAddFanin( pNode, pMiter );
   Abc_ObjAssignName( pNode, "keymiter", NULL );
   Abc_NtkOrderCisCos( pNtk );
-  // make sure that everything is okay
 
-  //ClapAttack_WriteMiterVerilog(pNtk, "test7.v");
+  // Make sure we did not damage the network while modifying it
   if ( !Abc_NtkCheck( pNtk ) )
     {
       printf( "Abc_NtkOrPos: The network check has failed.\n" );
       return 0;
     }
 
+  // Free all allocated memory
   free(pKey1);
   free(pKey2);
   free(pMiterTmp);
@@ -4039,6 +4018,10 @@ int ClapAttack_MiterKeys( Abc_Ntk_t * pNtk )
   return 1;
 }
 
+// Generate the partial key miter capable of excluding any keys that were determined to
+// NOT be capable of producing EOFM observed behavior. This effectively eliminates these
+// eliminated keys from being valid logical solutions to the CLAP miter circuit to identify
+// key leakage.
 int ClapAttack_PartialKeyInferenceMiter( Abc_Ntk_t * pNtk, Abc_Ntk_t ** ppNtkMiter, char * CurKeyName )
 {
   Abc_Ntk_t *pNtkMiterTmp, *ntkTmp;
@@ -4080,20 +4063,17 @@ int ClapAttack_PartialKeyInferenceMiter( Abc_Ntk_t * pNtk, Abc_Ntk_t ** ppNtkMit
     }
   }
 
+  // Delete known keys from the network copy
   if ( numKeysRemoved )
     ClapAttack_DelKnownKeys( ppNodeFreeList, numKeysRemoved );
 
+  // Clean up allocated memory here to avoid memory leak
   free(ppNodeFreeList);
 
   // Rename Po to avoid collision
   nDigits = Abc_Base10Log( Abc_NtkPiNum(*ppNtkMiter) );
   ClapAttack_RenameInput( *ppNtkMiter, "", "_1", "_1", nDigits );
   ClapAttack_RenameInput( pNtkMiterTmp, "", "_2", "_2", nDigits );
-  //ClapAttack_RenamePo( pNtkMiterTmp, 0, "not_key_miter_inv" );
-
-  
-  //ClapAttack_WriteMiterVerilog(*ppNtkMiter, "partial_key_inference_miter1.v");
-  //ClapAttack_WriteMiterVerilog(pNtkMiterTmp, "partial_key_inference_miter2.v");
 
   // Strash the networks
   ntkTmp = Abc_NtkStrash( *ppNtkMiter, 0, 1, 0 );
@@ -4104,7 +4084,6 @@ int ClapAttack_PartialKeyInferenceMiter( Abc_Ntk_t * pNtk, Abc_Ntk_t ** ppNtkMit
   Abc_NtkDelete( pNtkMiterTmp );
   pNtkMiterTmp = ntkTmp;
 
-  
   // Append the two networks we prepped for miter 1
   if ( !Abc_NtkAppendSilent( *ppNtkMiter, pNtkMiterTmp, 1 ) )
     {
@@ -4112,8 +4091,8 @@ int ClapAttack_PartialKeyInferenceMiter( Abc_Ntk_t * pNtk, Abc_Ntk_t ** ppNtkMit
       return 1;
     }  
 
-  //ABC_FREE(pNtkMiterTmp);
   Abc_NtkDelete( pNtkMiterTmp );
+
   // Generate the final miter cone
   extern int Abc_NtkCombinePos( Abc_Ntk_t * pNtk, int fAnd, int fXor );
 
@@ -4123,10 +4102,10 @@ int ClapAttack_PartialKeyInferenceMiter( Abc_Ntk_t * pNtk, Abc_Ntk_t ** ppNtkMit
       return 1;
     }
 
-  //ClapAttack_WriteMiterVerilog(*ppNtkMiter, "partial_key_inference_miter.v");
   return 0;
 }
 
+// Compare 2 key names to see if they are the same.
 int ClapAttack_CmpKeyName(char *KeyName1, char *KeyName2, int KeyLen1, int KeyLen2) {
 
   char *Key1Tmp = (char *) malloc( sizeof(char) * (KeyLen1+1) );
@@ -4148,6 +4127,9 @@ int ClapAttack_CmpKeyName(char *KeyName1, char *KeyName2, int KeyLen1, int KeyLe
   return tmpFlag;
 }
 
+// After running the physical portion of the CLAP attack, we need to dump all physically
+// leaked key info in to a format that can be read in by the open-source SAT attack tool
+// by Pramod et al (HOST'15)
 void ClapAttack_GenSatAttackConfig( Abc_Ntk_t * pNtk, struct BSI_KeyData_t *pGlobalBsiKeys ) {
 
   Abc_Ntk_t *pNtkTmp, * pNtkTmpSwap, * pNtkFinal;
@@ -4184,6 +4166,7 @@ void ClapAttack_GenSatAttackConfig( Abc_Ntk_t * pNtk, struct BSI_KeyData_t *pGlo
   }
 
 
+  // Iterate over the entire network and replace any known keys
   ppKnownKeys = (Abc_Obj_t **)malloc(sizeof(Abc_Obj_t *) * numKnownKeys);
   j = 0;
   Abc_NtkForEachPi( pNtkFinal, pPi, i ) {
@@ -4206,21 +4189,12 @@ void ClapAttack_GenSatAttackConfig( Abc_Ntk_t * pNtk, struct BSI_KeyData_t *pGlo
   Abc_NtkDelete( pNtkFinal );
   pNtkFinal = pNtkTmpSwap;
   
-  // Dump final SAT attack bench file
-  //Io_Write( pNtkFinal, "test.bench", IO_FILE_BENCH );
-  // Dump final SAT attack bench file
-  //Io_Write( pNtkFinal, "final_sat_dump_premiter.v", IO_FILE_VERILOG );
-  
-  // Edge case - skip if we gained no partial key info...
-  
-  
+  // Edge case - handle any partial key information --
+  // Essentially we are mitering in any partial key logic
+  // that has been generated over the course of hte attack
   if (pGlobalBsiKeys->pKeyCnf) {
 
-
-
-
-
-
+    // Iterate over every PO in the circuit
     Abc_NtkForEachCo( pNtkFinal, pObj2, j ) {
       ppPoVec[j] = pObj2;
     }
@@ -4249,7 +4223,8 @@ void ClapAttack_GenSatAttackConfig( Abc_Ntk_t * pNtk, struct BSI_KeyData_t *pGlo
       }
     }
 
-
+    // Find known keys and replace them with their intended value to simplify
+    // circuit prior to launching SAT attack
     ppKnownKeys = (Abc_Obj_t **)malloc(sizeof(Abc_Obj_t *) * numKnownKeys);
     j = 0;
     Abc_NtkForEachPi( pNtkTmp, pPi, i ) {
@@ -4262,19 +4237,12 @@ void ClapAttack_GenSatAttackConfig( Abc_Ntk_t * pNtk, struct BSI_KeyData_t *pGlo
       }
     }
 
+    // Delete any known keys in the network
     for(j=0;j<numKnownKeys;j++)
       Abc_NtkDeleteObj( ppKnownKeys[j] );
   
-
-
-
-    
-
-
-
-
-
-    
+    // Strash the network to clean now that we have removed
+    // known key input values
     pNtkTmpSwap = Abc_NtkStrash( pNtkTmp, 0, 1, 0 );
     Abc_NtkDelete( pNtkTmp );
     pNtkTmp = pNtkTmpSwap;
@@ -4288,88 +4256,49 @@ void ClapAttack_GenSatAttackConfig( Abc_Ntk_t * pNtk, struct BSI_KeyData_t *pGlo
       return;
     }
 
-
-
-    // Dump final SAT attack bench file
-    //Io_Write( pNtkTmp, "pre_append.v", IO_FILE_VERILOG );
-
-        // Dump final SAT attack bench file
-    //Io_Write( pNtkFinal, "append.v", IO_FILE_VERILOG );
-
-    
     // Get fanin for PO
     Abc_NtkForEachCo( pNtkFinal, pObj, i ) {
       if ( (!strcmp(Abc_ObjName(pObj), "not_key_partial" )) || (!strcmp(Abc_ObjName(pObj), "not_key" )) )
 	break;
     }
 
+    // Get child of node so we can remove it without destroying
+    // network data structure -- If we dont save this, we lose
+    // ancestors of node.
     pNode = Abc_ObjChild0(Abc_NtkPo(pNtkFinal, i));
 
-    // invert it.
-    //pNode = Abc_ObjNot(pNode);
-    
     // remove the PO and their names
     Abc_NtkDeleteObj( Abc_NtkPo(pNtkFinal, i) );
 
-    
-
     for(j=0;j< Abc_NtkPoNum(pNtk); j++){
 
+      // Get child of node so we can remove it without destroying
+      // network data structure
       pNode2 = Abc_ObjChild0(ppPoVec[j]);
 	
-      // invert it.
-      //pNode = Abc_ObjNot(pNode);
-      
       // remove the PO and their names
       strcpy (tmpName, Abc_ObjName(ppPoVec[j]));
       Abc_NtkDeleteObj( ppPoVec[j] );
       
-      //pNode2 = Abc_AigAnd( pNtkFinal->pManFunc, pNode,  pNode2 );
-      
       // create the new PO     
       pPo = Abc_NtkCreatePo( pNtkFinal );
-      
       Abc_ObjAddFanin( pPo, Abc_AigAnd( (Abc_Aig_t *)(pNtkFinal)->pManFunc, pNode,  pNode2 ));
       Abc_ObjAssignName( pPo, tmpName, NULL );
-      //ClapAttack_RenamePo( pNtkFinal, i,  Abc_ObjName(pObj));
-      //Abc_ObjAddFanin( pObj2, Abc_AigAnd( (Abc_Aig_t *)(pNtkFinal)->pManFunc, pNode,  pNode2 ) );
-      //Abc_ObjDeleteFanin( pObj2, pNode2 );
     }
-
-
     
     // Order the new POs added
     Abc_NtkOrderCisCos( pNtkFinal );
 
-
-    /*
-    exit(0);
-    if (j == 5){
-      // Append partial key info with the original benchfile
-      if ( !Abc_NtkAppendSilentAnd( pNtkFinal, pNtkTmp, 0 ) )
-	{
-	  Abc_NtkDelete( pNtkFinal );
-	  Abc_NtkDelete( pNtkTmp );
-	  Abc_Print( -1, "Appending the networks failed.\n" );
-	  return;
-	}
-    }
-    */
+    // Delete temp files to prevent memory leak
     Abc_NtkDelete( pNtkTmp );
-
-
-     
-
   }
 
-  // Strash+fraig the networks
+  // Strash the networks
   pNtkTmpSwap = Abc_NtkStrash( pNtkFinal, 0, 1, 0 );
   Abc_NtkDelete( pNtkFinal );
   pNtkFinal = pNtkTmpSwap;
 
-  // Dump final SAT attack bench file
-  //Io_Write( pNtkFinal, "test2.bench", IO_FILE_BENCH );
-  
+  // Fraig the networks
   Fraig_ParamsSetDefault( &Params );
   pNtkTmpSwap = Abc_NtkFraig( pNtkFinal, &Params, 0, 0 );
   Abc_NtkDelete( pNtkFinal );
@@ -4378,11 +4307,6 @@ void ClapAttack_GenSatAttackConfig( Abc_Ntk_t * pNtk, struct BSI_KeyData_t *pGlo
   // Dump final SAT attack bench file
   Io_Write( pNtkFinal, "final_sat_dump.bench", IO_FILE_BENCH );
 
-    // Dump final SAT attack bench file
-  //Io_Write( pNtkFinal, "final_sat_dump.v", IO_FILE_VERILOG );
-
 }
-
-
 
 ABC_NAMESPACE_IMPL_END
