@@ -46,7 +46,7 @@ int TestFirst_CommandTestFirst(Abc_Frame_t * pAbc, int argc, int ** argv) {
   return 0;
  usage:
   Abc_Print(-2, "usage: firstcmd [-vh] \n");
-  Abc_Print(-2, "\t         Our first command in ABC. It prints information about the function read into ABC\n");
+  Abc_Print(-2, "\t         The physical portion of the CLAP attack in ABC.\n");
   Abc_Print(-2, "\t-v     : toggle printing verbose information [default = %s]\n", fVerbose ? "yes" : "no");
   Abc_Print(-2, "\t-h     : print the command usage \n");
   return 1;
