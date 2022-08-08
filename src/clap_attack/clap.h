@@ -1,5 +1,5 @@
-#ifndef TESTFIRST_h
-#define TESTFIRST_h
+#ifndef CLAPATTACK_h
+#define CLAPATTACK_h
 
 // Includes
 #include "base/main/main.h"
@@ -10,7 +10,7 @@ ABC_NAMESPACE_HEADER_START
 // Basic Types
 
 // Function Declarations
-extern int TestFirst_FirstFunctionAbc(Abc_Frame_t * pAbc);
+extern int ClapAttack_ClapAttackAbc(Abc_Frame_t * pAbc);
 
 #endif
 

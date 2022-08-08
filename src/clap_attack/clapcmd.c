@@ -1,17 +1,17 @@
 #include "base/main/main.h"
-#include "testfirst.h"
+#include "clap.h"
 
 ABC_NAMESPACE_IMPL_START
 
 // Declarations
-static int TestFirst_CommandTestFirst(Abc_Frame_t * pAbc, int argc, int **argv);
+static int ClapAttack_CommandClapAttack(Abc_Frame_t * pAbc, int argc, int **argv);
 
 // Function Definitions
-void TestFirst_Init(Abc_Frame_t * pAbc) {
-  Cmd_CommandAdd(pAbc, "Various", "firstcmd", TestFirst_CommandTestFirst, 0);
+void ClapAttack_Init(Abc_Frame_t * pAbc) {
+  Cmd_CommandAdd(pAbc, "Various", "clap", ClapAttack_CommandClapAttack, 0);
 }
 
-int TestFirst_CommandTestFirst(Abc_Frame_t * pAbc, int argc, int ** argv) {
+int ClapAttack_CommandClapAttack(Abc_Frame_t * pAbc, int argc, int ** argv) {
   int fVerbose;
   int c, result;
 
@@ -33,7 +33,7 @@ int TestFirst_CommandTestFirst(Abc_Frame_t * pAbc, int argc, int ** argv) {
   }
 
   // call the main function
-  result = TestFirst_FirstFunctionAbc(pAbc);
+  result = ClapAttack_ClapAttackAbc(pAbc);
 
   // print verbose information if the verbose mode is on
   if (fVerbose) {
@@ -45,7 +45,7 @@ int TestFirst_CommandTestFirst(Abc_Frame_t * pAbc, int argc, int ** argv) {
 
   return 0;
  usage:
-  Abc_Print(-2, "usage: firstcmd [-vh] \n");
+  Abc_Print(-2, "usage: clap [-vh] \n");
   Abc_Print(-2, "\t         The physical portion of the CLAP attack in ABC.\n");
   Abc_Print(-2, "\t-v     : toggle printing verbose information [default = %s]\n", fVerbose ? "yes" : "no");
   Abc_Print(-2, "\t-h     : print the command usage \n");

@@ -25,7 +25,7 @@ struct SatMiterList {
   struct SatMiterList * pPrev;
 };
 
-int TestFirst_FirstFunctionAbc(Abc_Frame_t * pAbc);
+int ClapAttack_ClapAttackAbc(Abc_Frame_t * pAbc);
 int TestFirst_FirstFunction(Abc_Frame_t * pAbc);
 void TestFirst_TraversalRecursive( Abc_Ntk_t * pNtk, Abc_Obj_t * pCurNode, struct BSI_KeyData_t * pGlobalBsiKeys, int *pOracleKey, int MaxKeysConsidered, Abc_Ntk_t ** ppCurKeyCnf, int *pTotalProbes );
 void TestFirst_TraversalRecursiveHeuristic( Abc_Ntk_t * pNtk, Abc_Obj_t * pCurNode, struct BSI_KeyData_t * pGlobalBsiKeys, int MaxKeysConsidered, Abc_Ntk_t ** ppCurKeyCnf, struct SatMiterList ** ppSatMiterList, int *pNumProbes, int MaxProbes );
@@ -76,7 +76,7 @@ int nValidProbePoint;
 int nAvgKeyCount;
 /* End Global Var for Probe Point Counter */
 
-int TestFirst_FirstFunctionAbc(Abc_Frame_t * pAbc) {
+int ClapAttack_ClapAttackAbc(Abc_Frame_t * pAbc) {
   Abc_Ntk_t * pNtk;
   int result;
 
@@ -84,7 +84,7 @@ int TestFirst_FirstFunctionAbc(Abc_Frame_t * pAbc) {
   pNtk = Abc_FrameReadNtk(pAbc);
 
   if(pNtk == NULL) {
-    Abc_Print(-1, "TestFirst_FirstFunctionAbc: Getting the target network has failed.\n");
+    Abc_Print(-1, "ClapAttack_ClapAttackAbc: Getting the target network has failed.\n");
     return 0;
   }
 
