@@ -1,7 +1,8 @@
 //
 // Open-Source ABC Command for the Physical Portion of CLAP Attack
-// From: A Combined Logical and Physical Attack on Logic Obfuscation
+// From: ICCAD'22, A Combined Logical and Physical Attack on Logic Obfuscation
 // Author: Michael Zuzak
+// Email: mjzeec@rit.edu
 //
 // Note that the logical portion of the CLAP attack relies on the
 // open-source SAT attack released by Pramod et al in Host'15
@@ -47,11 +48,8 @@ void ClapAttack_CleanCone( Abc_Ntk_t ** ppNtk );
 void ClapAttack_RenamePo( Abc_Ntk_t * pNtk, int PoIdx, char *NewPoName);
 void ClapAttack_InitKeyCnf( Abc_Ntk_t ** ppNtk, int NumKeys, int * WrongKeyValue, char ** KeyNames );
 void ClapAttack_UpdateKeyCnf( Abc_Ntk_t ** ppNtk, int NumKeys, int * WrongKeyValue, char ** KeyNames );
-int ClapAttack_BuildPartialKeyMiter( Abc_Ntk_t ** ppNtk );
-int ClapAttack_MakeMiter(Abc_Ntk_t * pNtkCone, Abc_Ntk_t * pNtkPartialKey, Abc_Ntk_t ** ppNtkMiter);
 int ClapAttack_MakeMiterHeuristic(Abc_Ntk_t * pNtkCone, Abc_Ntk_t * pNtkPartialKey, Abc_Ntk_t ** ppNtkMiter);
 int ClapAttack_RunSat(Abc_Ntk_t *pNtk);
-void ClapAttack_InterpretDi(Abc_Ntk_t *pNtk, int *pDiFull, int NumKeys, int *KeyWithFreq, int *KeyNoFreq);
 int ClapAttack_OracleInferKey(Abc_Ntk_t *pNtk, int * pSimInfo1, int * pSimInfo2);
 void ClapAttack_OracleSimDi(Abc_Ntk_t *pNtk, int * pDi, int NumKeys, int *KeyWithFreq, int *KeyNoFreq, int *WrongKeyValue);
 void ClapAttack_UpdateKey(char *KeyNameTmp, int KeyValue, struct BSI_KeyData_t *pGlobalBsiKeys);
@@ -76,12 +74,12 @@ int ClapAttack_CmpKeyName( char *KeyName1, char *KeyName2, int KeyLen1, int KeyL
 
 ABC_NAMESPACE_IMPL_START
 
-
 /* Global Var for Probe Point Counter  
 int nValidProbePoint;
 int nAvgKeyCount;
 /* End Global Var for Probe Point Counter */
 
+// CLAP Attack wrapper function -- entry point to CLAP
 int ClapAttack_ClapAttackAbc(Abc_Frame_t * pAbc) {
   Abc_Ntk_t * pNtk;
   int result;
@@ -120,7 +118,7 @@ int ClapAttack_ClapAttack(Abc_Frame_t * pAbc) {
 
   // Paper benchmarks -- c1908
   // RLL
-  //int pOracleKey[88] = {0,0,0,0,0,1,0,0,1,0,0,0,1,1,0,1,1,1,1,1,0,1,0,1,0,1,1,1,1,0,1,0,0,0,0,0,0,0,1,0,0,1,0,0,1,1,1,1,0,0,1,0,0,1,0,1,1,0,1,1,1,1,1,0,0,1,1,1,1,0,0,0,0,0,1,0,1,0,0,1,1,0,1,1,0,1,1,1};
+  int pOracleKey[88] = {0,0,0,0,0,1,0,0,1,0,0,0,1,1,0,1,1,1,1,1,0,1,0,1,0,1,1,1,1,0,1,0,0,0,0,0,0,0,1,0,0,1,0,0,1,1,1,1,0,0,1,0,0,1,0,1,1,0,1,1,1,1,1,0,0,1,1,1,1,0,0,0,0,0,1,0,1,0,0,1,1,0,1,1,0,1,1,1};
   // OA32
   //int pOracleKey[174] = {1,1,1,0,1,0,0,1,0,0,1,1,0,0,1,1,0,1,1,1,1,1,0,0,1,1,1,0,0,0,1,0,0,0,1,0,0,0,0,1,1,0,0,1,0,0,0,1,0,0,1,1,1,0,0,1,0,0,1,0,1,1,1,1,0,1,1,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,1,0,1,1,1,0,0,0,1,0,0,1,0,0,0,1,1,0,1,1,1,1,1,0,0,0,1,0,0,1,1,0,1,1,0,1,1,0,1,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,1,0,1,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,1,1,1,0,1,0,1,0,1};
   // BA32
@@ -138,7 +136,7 @@ int ClapAttack_ClapAttack(Abc_Frame_t * pAbc) {
   
   // Paper benchmarks -- c5315
   // RLL
-  int pOracleKey[231] = {1,1,1,0,0,0,1,1,0,1,1,0,1,0,1,1,0,0,0,1,1,0,0,0,0,0,1,0,0,1,1,0,0,1,0,0,1,1,0,0,0,1,0,0,0,1,1,1,1,1,0,0,0,0,1,1,0,0,0,0,0,1,1,1,0,0,0,1,1,0,0,0,0,1,1,0,1,0,0,0,0,0,1,0,1,1,0,1,0,0,0,0,1,0,0,0,1,0,0,1,0,0,1,0,0,0,0,0,1,0,1,1,1,0,1,1,1,0,0,0,1,1,1,1,1,1,0,0,1,1,0,0,1,1,0,1,0,1,1,0,0,1,0,1,1,0,0,1,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,1,0,0,1,1,0,0,0,0,1,1,1,0,0,0,0,0,1,1,0,1,0,0,1,0,0,1,1,0,1,1,0,1,1,0,1,0,0,1,1,1,0,1,1,0,0,0,0,0,0,0,1,0,1,0,1,1,1,1,0,0,0,1,0,1,0,1,0};
+  //int pOracleKey[231] = {1,1,1,0,0,0,1,1,0,1,1,0,1,0,1,1,0,0,0,1,1,0,0,0,0,0,1,0,0,1,1,0,0,1,0,0,1,1,0,0,0,1,0,0,0,1,1,1,1,1,0,0,0,0,1,1,0,0,0,0,0,1,1,1,0,0,0,1,1,0,0,0,0,1,1,0,1,0,0,0,0,0,1,0,1,1,0,1,0,0,0,0,1,0,0,0,1,0,0,1,0,0,1,0,0,0,0,0,1,0,1,1,1,0,1,1,1,0,0,0,1,1,1,1,1,1,0,0,1,1,0,0,1,1,0,1,0,1,1,0,0,1,0,1,1,0,0,1,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,1,0,0,1,1,0,0,0,0,1,1,1,0,0,0,0,0,1,1,0,1,0,0,1,0,0,1,1,0,1,1,0,1,1,0,1,0,0,1,1,1,0,1,1,0,0,0,0,0,0,0,1,0,1,0,1,1,1,1,0,0,0,1,0,1,0,1,0};
   // OA32
   //int pOracleKey[252] = {1,1,1,0,1,0,0,1,0,0,1,1,0,0,1,1,0,1,1,1,1,1,0,0,1,1,1,0,0,0,1,0,0,0,1,0,0,0,0,1,1,0,0,1,0,0,0,1,0,0,1,0,1,1,1,0,1,0,1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,0,0,0,0,0,0,1,1,0,1,1,0,0,1,1,1,1,0,1,1,0,0,1,1,0,1,0,0,1,1,0,0,0,1,1,0,0,0,0,0,1,0,1,0,1,1,0,0,1,0,0,1,1,1,0,0,1,1,0,0,0,1,1,0,1,0,1,1,0,0,0,0,1,0,1,0,0,0,0,1,1,0,0,1,0,1,1,1,0,0,1,0,1,1,0,0,1,1,1,1,0,1,1,1,0,0,0,0,1,0,1,0,1,0,1,1,1,0,0,1,1,0,1,1,1,1,1,1,1,0,1,1,0,0,0,1,0,0,1,1,0,1,0,1,1,0,1,1,0,1,1,0,0,0,0,0,1,1,0,1,0,1,0,0,0,1,1,1,0,0,1,0,1,0,1,1,0,0,0};
   // WF
@@ -174,58 +172,7 @@ int ClapAttack_ClapAttack(Abc_Frame_t * pAbc) {
   //WF-40
   //int pOracleKey[540] = {1,1,0,1,1,1,1,1,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,1,0,0,0,1,1,0,1,1,0,1,1,1,1,1,1,0,0,0,1,0,0,1,1,1,1,1,0,1,1,0,0,1,0,1,0,1,1,0,1,0,1,0,0,1,1,0,1,1,0,0,0,0,0,0,0,1,0,1,1,0,1,1,0,0,1,0,1,0,0,0,1,1,0,0,1,0,1,0,0,1,1,0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,1,1,1,0,1,0,1,1,1,1,1,0,1,0,0,0,1,0,1,1,1,1,0,1,0,1,1,1,1,0,1,0,1,1,0,0,0,0,1,1,0,1,1,1,1,1,1,0,0,1,1,0,1,0,1,0,1,0,0,0,0,1,0,0,1,0,0,1,0,1,1,1,1,1,0,0,1,1,0,1,1,1,0,1,1,1,1,1,1,1,1,0,1,1,1,1,0,0,0,1,1,1,0,0,0,1,1,0,0,0,0,0,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,1,1,0,1,0,0,0,0,0,1,1,1,0,1,0,1,0,1,0,0,0,0,0,1,0,0,0,0,1,1,1,0,1,1,0,0,1,1,0,1,1,0,0,0,0,1,1,0,1,0,0,0,0,0,1,1,1,0,0,1,0,1,0,1,1,1,1,0,0,1,0,0,0,0,1,0,1,1,1,0,0,1,0,0,1,1,1,1,0,0,1,1,1,1,0,1,1,0,0,0,1,0,1,0,1,0,0,1,1,1,0,1,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,1,0,0,1,0,0,1,1,0,1,1,0,1,0,1,1,0,0,0,0,0,1,0,0,1,1,0,0,0,1,1,1,0,0,0,1,0,0,1,0,1,1,0,0,1,1,0,1,0,0,0,0,1,1,0,1,1,0,0,0,0,0,1,1,1,0,1,0,1,0,1,0,1,1,1,1,0,0,1,1,0,1,1,0,1,1,1,0,1,0,0,1,1,1,1,0,1,0,1,1,1,1,0,1,1,0,0,1,0,1,1,0,1,1,0,0,1,0,0,0,1,1,0,1,0,0,1,1,0,1,1,0,1,0,1,1,0,1,0};
 
-  //key=11101001001100110111110011100010001000011001000100101110101001111110010010000001101100111101100110100110001100000101011001001110000000000101110111100000011101000111110110000000100000110011001110100000000011101000111100110000000110011111011110110110101011001000100000011110000011010000111111111100101101101100110111001010000010011110010101111111011011101000000100110000
-  
-
-  // Yuntao - c1908_SFLL_16x1
-  //int pOracleKey[16] = {0,1,1,1,0,1,0,0,0,1,1,1,0,0,0,0};
-  // Yuntao - c1908_SFLL_33x1
-  //int pOracleKey[33] = {0,1,1,1,0,1,0,0,0,1,1,1,0,0,0,0,0,0,1,1,0,0,0,0,1,0,0,0,0,1,1,1,0};
-  // Yuntao - c1908 2x2WF
-  //int pOracleKey[12] = {0,1,1,0,1,1,1,0,0,0,1,1};
-  
-  //int pOracleKey[19] = {0,0,0,0,0,0,1,1,0,0,1,1,1,1,1,0,1,1,1};  
-
-  // c499_enc05
-  //int pOracleKey[10] = {1,1,1,0,1,0,0,1,0,0};
-  //c880_enc05
-  //int pOracleKey[19] = {1,1,1,0,1,0,0,1,0,0,1,1,0,0,1,1,0,1,1};  
-  // ./../tooling-dev/benchmarks/antisat/c1355_OA4.bench
-  //int pOracleKey[45] = {1,1,1,0,1,0,0,1,0,0,1,1,0,0,1,1,0,1,1,1,1,1,0,0,1,1,1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,1,0,0};
-  // ./../lazy-sat-attack-master/benchmarks/rnd/dalu_enc10.bench
-  //int pOracleKey[230] = {0,0,0,0,0,0,0,0,1,0,0,1,1,1,0,1,0,0,1,0,0,0,0,0,1,0,1,0,0,1,1,1,0,1,1,0,1,1,1,1,1,1,0,1,1,1,0,0,0,0,1,1,0,0,1,0,1,1,1,0,0,0,1,1,0,1,1,0,1,0,1,1,0,0,0,1,1,0,0,0,0,0,1,0,0,1,1,0,0,1,0,0,1,1,0,0,0,1,0,0,0,1,1,1,1,1,0,0,0,0,1,1,0,0,0,0,0,1,1,1,0,0,0,1,1,0,0,0,0,1,1,0,1,0,0,0,0,0,1,0,1,1,0,1,0,0,0,0,1,0,0,0,1,0,0,1,0,0,1,0,0,0,0,0,1,0,1,1,1,0,1,1,1,0,0,0,1,1,1,1,1,1,0,0,1,1,0,0,1,1,0,1,0,1,1,0,0,1,0,1,1,0,0,1,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,1,0,0,1,1,0,0,0,0,1,1};
-  // ./../tooling-dev/benchmarks/antisat/des_BA16.bench
-  //int pOracleKey[368] = {1,1,1,0,1,0,0,1,0,0,1,1,0,0,1,1,0,1,1,1,1,1,0,0,1,1,1,0,0,0,1,0,0,0,1,0,0,0,0,1,1,0,0,1,0,0,0,1,0,0,1,0,1,1,1,0,1,0,1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,0,0,0,0,0,0,1,1,0,1,1,0,0,1,1,1,1,0,1,1,0,0,1,1,0,1,0,0,1,1,0,0,0,1,1,0,0,0,0,0,1,0,1,0,1,1,0,0,1,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,1,0,1,1,1,0,1,1,1,1,0,0,0,0,0,0,1,1,1,0,1,0,0,0,1,1,1,1,1,0,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,1,0,0,1,1,0,0,1,1,1,0,1,0,0,0,0,0,0,0,0,0,1,1,1,0,1,0,0,0,1,1,1,1,0,0,1,1,0,0,0,0,0,0,0,1,1,0,0,1,1,1,1,1,0,1,1,1,1,0,1,1,0,1,1,0,1,0,1,0,1,1,0,0,1,0,0,0,1,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,1,1,0,1,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,1,0,1,1,0,1,1,0,1,1,0,0,1,1,0,1,1,1,0,0,1,0,1,0,0,0,0,0,1,0,0,1,1,1,1,0,0,1,0,1,0,1,1,1,1,1,1,1,0,1,1,0,1,1,1,0,1,0,0,0,0,0,0,1,0,0,1,1,0,0,0,0};
-  // ./../tooling-dev/benchmarks/antisat/dalu_BA8.bench
-  //int pOracleKey[135] = {1,1,1,0,1,0,0,1,0,0,1,1,0,0,1,1,0,1,1,1,1,1,0,0,1,1,1,0,0,0,1,0,0,0,1,0,0,0,0,1,1,0,0,1,0,0,0,1,0,0,1,0,1,1,1,0,1,0,1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,0,0,0,0,0,0,1,1,0,1,1,0,0,1,1,1,1,0,1,1,0,0,1,1,0,1,0,0,1,1,0,0,0,1,1,0,0,0,0,0,1,0,1,0,1,1,0,1,1,1,1,0,1,1,1,1,0,0,0,1,1,0};
-  // ./../tooling-dev/benchmarks/antisat/dalu_OA8.bench
-  //int pOracleKey[151] = {1,1,1,0,1,0,0,1,0,0,1,1,0,0,1,1,0,1,1,1,1,1,0,0,1,1,1,0,0,0,1,0,0,0,1,0,0,0,0,1,1,0,0,1,0,0,0,1,0,0,1,0,1,1,1,0,1,0,1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,0,0,0,0,0,0,1,1,0,1,1,0,0,1,1,1,1,0,1,1,0,0,1,1,0,1,0,0,1,1,0,0,0,1,1,0,0,0,0,0,1,0,1,0,1,1,0,1,1,1,1,0,1,1,1,1,0,0,0,1,1,0,1,1,0,0,0,1,1,1,1,0,1,1,0,0,1,1};
-  // ./../tooling-dev/benchmarks/antisat/dalu_BA16.bench
-  //int pOracleKey[151] = {1,1,1,0,1,0,0,1,0,0,1,1,0,0,1,1,0,1,1,1,1,1,0,0,1,1,1,0,0,0,1,0,0,0,1,0,0,0,0,1,1,0,0,1,0,0,0,1,0,0,1,0,1,1,1,0,1,0,1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,0,0,0,0,0,0,1,1,0,1,1,0,0,1,1,1,1,0,1,1,0,0,1,1,0,1,0,0,1,1,0,0,0,1,1,0,0,0,0,0,1,0,1,0,1,1,0,1,1,1,1,0,1,1,1,1,0,0,0,1,1,0,1,0,1,0,1,1,1,0,1,0,0,0,1,0,0,0};
-  // ./../lazy-sat-attack-master/benchmarks/antisat/des_BA16.bench
-  //int pOracleKey[368] = {1,1,1,0,1,0,0,1,0,0,1,1,0,0,1,1,0,1,1,1,1,1,0,0,1,1,1,0,0,0,1,0,0,0,1,0,0,0,0,1,1,0,0,1,0,0,0,1,0,0,1,0,1,1,1,0,1,0,1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,0,0,0,0,0,0,1,1,0,1,1,0,0,1,1,1,1,0,1,1,0,0,1,1,0,1,0,0,1,1,0,0,0,1,1,0,0,0,0,0,1,0,1,0,1,1,0,0,1,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,1,0,1,1,1,0,1,1,1,1,0,0,0,0,0,0,1,1,1,0,1,0,0,0,1,1,1,1,1,0,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,1,0,0,1,1,0,0,1,1,1,0,1,0,0,0,0,0,0,0,0,0,1,1,1,0,1,0,0,0,1,1,1,1,0,0,1,1,0,0,0,0,0,0,0,1,1,0,0,1,1,1,1,1,0,1,1,1,1,0,1,1,0,1,1,0,1,0,1,0,1,1,0,0,1,0,0,0,1,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,1,1,0,1,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,1,0,1,1,0,1,1,0,1,1,0,0,1,1,0,1,1,1,0,0,1,0,1,0,0,0,0,0,1,0,0,1,1,1,1,0,0,1,0,1,0,1,1,1,1,1,1,1,0,1,1,0,1,1,1,0,1,0,0,0,0,0,0,1,0,0,1,1,0,0,0,0};
-  // ./../lazy-sat-attack-master/benchmarks/antisat/des_OA16.bench
-  //int pOracleKey[400] = {1,1,1,0,1,0,0,1,0,0,1,1,0,0,1,1,0,1,1,1,1,1,0,0,1,1,1,0,0,0,1,0,0,0,1,0,0,0,0,1,1,0,0,1,0,0,0,1,0,0,1,0,1,1,1,0,1,0,1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,0,0,0,0,0,0,1,1,0,1,1,0,0,1,1,1,1,0,1,1,0,0,1,1,0,1,0,0,1,1,0,0,0,1,1,0,0,0,0,0,1,0,1,0,1,1,0,0,1,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,1,0,1,1,1,0,1,1,1,1,0,0,0,0,0,0,1,1,1,0,1,0,0,0,1,1,1,1,1,0,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,1,0,0,1,1,0,0,1,1,1,0,1,0,0,0,0,0,0,0,0,0,1,1,1,0,1,0,0,0,1,1,1,1,0,0,1,1,0,0,0,0,0,0,0,1,1,0,0,1,1,1,1,1,0,1,1,1,1,0,1,1,0,1,1,0,1,0,1,0,1,1,0,0,1,0,0,0,1,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,1,1,0,1,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,1,0,1,1,0,1,1,0,1,1,0,0,1,1,0,1,1,1,0,0,1,0,1,0,0,0,0,0,1,0,0,1,1,1,1,0,0,1,0,1,0,1,1,1,1,1,1,1,0,1,1,0,1,1,1,0,1,0,0,0,0,0,0,1,0,0,1,1,0,0,0,0,1,1,0,1,0,0,0,1,0,0,1,1,1,1,0,0,0,1,0,0,0,1,1,1,0,0,1,0,1,1,0,1};
-  // ./../lazy-sat-attack-master/benchmarks/rnd/des_enc10.bench
-  //int pOracleKey[647] = {1,0,0,0,1,0,0,1,0,1,0,0,0,1,1,1,0,1,1,1,1,1,0,0,1,1,0,1,0,0,0,1,0,0,1,0,1,0,1,1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,1,1,1,0,0,1,1,0,1,0,1,0,0,1,1,1,0,0,1,0,1,0,0,1,1,0,1,1,0,0,0,0,1,1,0,1,0,1,1,0,0,0,0,1,1,1,0,0,1,1,0,1,1,1,0,1,0,0,1,0,0,0,1,1,0,1,0,1,1,1,1,0,0,0,0,0,1,0,0,1,1,1,1,0,0,0,0,1,0,0,1,1,0,0,1,1,0,0,0,0,1,1,0,0,1,1,0,0,1,0,0,1,1,0,1,1,0,1,0,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,0,0,0,1,0,0,1,1,0,1,0,0,0,0,0,0,1,1,1,0,1,0,0,1,0,0,0,0,0,1,0,1,1,0,1,1,0,1,0,0,0,1,1,1,0,0,0,1,0,0,1,1,0,0,0,0,1,0,1,0,0,0,0,1,0,1,1,1,1,1,1,0,1,0,0,0,1,1,0,1,0,0,0,1,0,1,0,0,0,0,1,0,1,1,0,1,0,0,0,0,1,0,0,0,1,0,1,0,1,1,1,0,0,1,1,1,0,0,1,1,1,0,1,0,1,1,1,1,1,0,0,1,0,0,0,0,1,1,1,0,0,1,1,1,1,1,0,1,0,1,0,1,0,0,1,1,1,0,1,1,0,0,1,0,0,1,1,1,0,0,0,0,0,0,0,0,0,1,0,1,0,1,1,1,0,1,1,0,1,1,1,0,0,0,0,0,0,1,0,0,0,1,1,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,1,0,1,1,1,0,1,0,1,0,1,0,1,1,0,1,1,1,0,0,0,0,1,1,0,1,0,1,0,1,1,0,1,0,0,0,1,0,1,0,0,0,1,0,0,0,1,1,1,0,1,0,0,1,0,1,1,1,1,1,1,1,1,1,0,0,1,0,1,0,0,0,1,1,0,0,0,0,1,1,1,1,0,1,0,0,0,0,1,0,1,1,1,1,1,0,0,1,1,1,0,1,0,0,1,1,0,0,0,1,0,0,0,0,1,1,0,0,0,0,0,0,0,1,1,0,1,1,1,0,0,1,0,1,0,0,1,1,0,0,1,1,1,1,0,0,0,1,0,1,0,1,1,1,0,0,0,0,0,1,0,0,0,0,1,1,0,1,0,0,1,0,0,0,1,0,0,1,1,0,1,1,1,1,0,0,0,0,1,1,1,1,1,1,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,1,1,1,0,0,1,1,0,0,0,1,0,0,1,1,0,0,1,1,0,0,0,0,1,1,0,1};
-
-  // ./../../low_error_locking/TLL_benchmarks/b14/b14_sfll_k10.bench
-  //int pOracleKey[10] = {1,0,1,0,1,0,1,0,1,1};
-  
-  // ./../lazy-sat-attack-master/benchmarks/antisat/c1355_OA4.bench
-  //int pOracleKey[45] = {1,1,1,0,1,0,0,1,0,0,1,1,0,0,1,1,0,1,1,1,1,1,0,0,1,1,1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,1,0,0};
-  // ./../lazy-sat-attack-master/benchmarks/antisat/c1355_BA4.bench
-  //int pOracleKey[37] = {1,1,1,0,1,0,0,1,0,0,1,1,0,0,1,1,0,1,1,1,1,1,0,0,1,1,1,0,0,0,1,0,0,0,0,0,0};
-  //./../lazy-sat-attack-master/benchmarks/rnd/c1355_enc10.bench
-  //int pOracleKey[55] = {1,0,0,1,0,1,1,0,1,1,0,1,1,0,0,1,1,0,1,1,1,0,0,1,0,1,0,0,0,0,0,1,0,0,1,1,1,1,0,0,1,0,1,1,1,1,1,1,0,1,1,0,0,1,0};
-  
-  // check if the network is strashed
-  //if(!Abc_NtkIsStrash(pNtk)) {
-  //  Abc_Print(-1, "ClapAttack_ClapAttack: This command is only applicable to strashed networks.\n");
-  //  return 0;
-  //}
-
-  // print information about the network
+  // DEBUG: print information about the network
   //Abc_Print(1, "The network with name %s has:\n", Abc_NtkName(pNtk));
   //Abc_Print(1, "\t- %d primary inputs;\n", Abc_NtkPiNum(pNtk));
   //Abc_Print(1, "\t- %d primary outputs;\n", Abc_NtkPoNum(pNtk));
@@ -244,6 +191,8 @@ int ClapAttack_ClapAttack(Abc_Frame_t * pAbc) {
   Abc_NtkForEachNode( pNtk, pNode, i )
     pNode->fMarkC = 0;
 
+  // How many nodes are we currently considering for the multi-node probe? This will iteratively increase
+  // as we discover new nodes, so this should be left. It is not a parameter.
   MaxNodesConsidered = 2;
 
   // Goal: Iterate through each PI. Identify list of keys.
@@ -310,10 +259,6 @@ int ClapAttack_ClapAttack(Abc_Frame_t * pAbc) {
 		pSatMiterListCur = pSatMiterListCur->pNext;
 	      }
 	      printf("\n");
-
-	      // Set visited for each node to 0
-	      //Abc_NtkForEachNode( pNtk, pNode, j )
-	      //pNode->fMarkC = 0;
 
 	      break;
 	    }
@@ -398,7 +343,6 @@ int ClapAttack_ClapAttack(Abc_Frame_t * pAbc) {
       
     }
   }
-
   
   // Append known keys into partial key CNF for finalized circuit formulation
   ClapAttack_WriteMiterVerilog(GlobalBsiKeys.pKeyCnf, "global_keystore.v");
@@ -426,34 +370,24 @@ int ClapAttack_ClapAttack(Abc_Frame_t * pAbc) {
   return 1;
 }
 
-
+// Traverse the network looking for probe-able nodes. Note, this is used for the fixed EOFM probe case -- Multinode probing is explored in
+// the heuristic version of this function below.
 void ClapAttack_TraversalRecursive( Abc_Ntk_t * pNtk, Abc_Obj_t * pCurNode, struct BSI_KeyData_t * pGlobalBsiKeys, int *pOracleKey, int MaxKeysConsidered, Abc_Ntk_t ** ppCurKeyCnf, int *pTotalProbes ) {
-
   int *pFullDi;
   int i, j, k, m, SatStatus, MiterStatus, NumKeys, NumKnownKeys, *KeyWithFreq, *KeyNoFreq, *WrongKeyValue, KeyValue, PartialKeySatStatus, fCurKeyCnfAlloc;
   Abc_Ntk_t *pNtkCone, *pNtkMiter, *pInferPartialKeyMiter, *ntkTmp;
   Abc_Obj_t * pNode, * pPi, * pKey, **ppNodeFreeList;
   char ** KeyNameTmp;
-
-
-
   
   // Initialize partial key info to NULL
-  //if ( ppCurKeyCnf )
-  // pCurKeyCnf = *ppCurKeyCnf;
-  //else
-  //  pCurKeyCnf = NULL;
   fCurKeyCnfAlloc = 0;
   NumKeys = 0;
   
   // Goal: For each PI that is a key, follow fanout until it intersects with unknown key.
   Abc_ObjForEachFanout( pCurNode, pNode, i ) {
-    
 
     // Have we visited this node before?
     if (!pNode->fMarkC) {
-
-
 
       // Initialzie free list to the number of keys present...
       ppNodeFreeList = (Abc_Obj_t **)malloc( sizeof(Abc_Obj_t *) * pGlobalBsiKeys->NumKeys);
@@ -463,32 +397,20 @@ void ClapAttack_TraversalRecursive( Abc_Ntk_t * pNtk, Abc_Obj_t * pCurNode, stru
 	KeyNameTmp[k] = (char *)malloc( sizeof(char) * 100);
       }
       
-
-
-    
       // Check to make sure were not lookign at a PO. If so,
       // don't bother pursuing the fanout.
       if ( Abc_ObjIsCo(pNode) ) {
-	//printf("This node is a primary output. Done with fanout.\n");       
 	for(k=0; k<MaxKeysConsidered; k++)
 	  free(KeyNameTmp[k]);
 	free(KeyNameTmp);
 	free(ppNodeFreeList);
 	continue;
       }
-
-
-
-      
       
       // Check supports ... if only one is an unknown key,
       // process it and continue fanout
       ClapAttack_IsolateCone(pNtk, &pNtkCone, pNode);
       
-      // Make sure only one cone input is a key... for now.
-      // ToDo -> Make this more efficient...
-      //ClapAttack_WriteMiterVerilog(pNtkCone, "cone_preconst.v");
-
       // Loop over the miter generation phase until SAT fails
       do {
 	NumKeys = 0;
@@ -498,6 +420,7 @@ void ClapAttack_TraversalRecursive( Abc_Ntk_t * pNtk, Abc_Obj_t * pCurNode, stru
 	MiterStatus = 1;
 
 	Abc_NtkForEachPi( pNtkCone, pPi, j ) {
+
 	  // Are we looking at a key input?
 	  if( strstr(Abc_ObjName(pPi), "key") ) {
 	    if ( !ClapAttack_SetKnownKeys( pNtkCone, pPi, pGlobalBsiKeys ) ) {
@@ -516,8 +439,6 @@ void ClapAttack_TraversalRecursive( Abc_Ntk_t * pNtk, Abc_Obj_t * pCurNode, stru
 	if ( NumKnownKeys )
 	  ClapAttack_DelKnownKeys( ppNodeFreeList, NumKnownKeys );
 
-
-
 	// We're processing the node. Mark it so we don't do this again.
 	// If it fails here, there is no information we can ever gain
 	if ( (NumKeys <= MaxKeysConsidered) )
@@ -527,31 +448,20 @@ void ClapAttack_TraversalRecursive( Abc_Ntk_t * pNtk, Abc_Obj_t * pCurNode, stru
 
 	  printf("Evaluating node %s\n", Abc_ObjName(pNode) );	  
 	  printf("The number of keys is: %d\n", NumKeys);	  
-	  // Remove unused logic and clean the PIs
-	  //ClapAttack_CleanCone(&pNtkCone);
-	  //ClapAttack_WriteMiterVerilog(pNtkCone, "cone.v");
-	  
-	  // We're processing the node. Mark it so we don't do this again.
-	  // If it fails here, there is no information we can ever gain
-	  //pNode->fMarkC = 1;
-	
 	  printf("Generating miter circuit.\n");       
-	  //ClapAttack_WriteMiterVerilog(pNtkCone, "cone_test1.v");
-	  //MiterStatus = ClapAttack_MakeMiter( pNtkCone, *ppCurKeyCnf, &pNtkMiter );
+
+	  // Generate miter to determine if key info leaks
 	  MiterStatus = ClapAttack_MakeMiterHeuristic( pNtkCone, *ppCurKeyCnf, &pNtkMiter );
-	  //Abc_NtkPrintIo( stdout, pNtkMiter, 1 );
-	  //Abc_NtkPrintIo( stdout, pNtkCone, 1 );
-	  
+
+	  // Did we successfully construct the miter?
 	  if (!MiterStatus) {
-	    
+
+	    // Run SAT on the miter to discover sensitizing inputs.
 	    printf("Running SAT on Miter circuit.\n");       
-	    
 	    SatStatus = ClapAttack_RunSat(pNtkMiter);
-	    //ClapAttack_WriteMiterVerilog(pNtkMiter, Abc_ObjName(pNode));
-	  
+
+	    // Are there sensitizing inputs for this miter?
 	    if (!SatStatus) {
-	      //ClapAttack_WriteMiterVerilog(pNtkCone, "cone.v");
-	      //ClapAttack_WriteMiterVerilog(pNtkMiter, "miter.v");
 
 	      /* Probe Point Counter  
 	      nValidProbePoint++;
@@ -560,6 +470,7 @@ void ClapAttack_TraversalRecursive( Abc_Ntk_t * pNtk, Abc_Obj_t * pCurNode, stru
 	      /* End Probe Point Counter */
 	      
 	      /* Begin Probe Point Counter Comment */  
+	      // Debug printing
 	      printf("SAT successfully located a key for keys:  ");
 	      for (k=0; k<NumKeys; k++)
 		printf("%s ", KeyNameTmp[k]);
@@ -569,23 +480,20 @@ void ClapAttack_TraversalRecursive( Abc_Ntk_t * pNtk, Abc_Obj_t * pCurNode, stru
 	      KeyWithFreq = (int *)malloc( sizeof(int) * NumKeys );
 	      KeyNoFreq = (int *)malloc( sizeof(int) * NumKeys );
 	      
-	      //ClapAttack_InterpretDi(pNtkCone, pNtkMiter->pModel, NumKeys, KeyWithFreq, KeyNoFreq);
 	      ClapAttack_InterpretDiHeuristic(pNtkCone, pNtkMiter, pNtkMiter->pModel, NumKeys, KeyWithFreq, KeyNoFreq, &pFullDi);
 	      
 	      // Oracle testing. Comment out with real probe.
-	      //ClapAttack_OracleSetConeKeys(pNtkCone, pNtkMiter->pModel, pOracleKey);
 	      ClapAttack_OracleSetConeKeys(pNtkCone, pFullDi, pOracleKey);
 
 	      // Increase probe count by 1
 	      (*pTotalProbes)++;
-	      
-	      
-	      
+
+	      // Determine which keys we can eliminate based on simulated probe-ing of keyed oracle.
+	      // Comment out for real-probeing case.
 	      WrongKeyValue = (int *)malloc( sizeof(int) * NumKeys);
-	      //ClapAttack_OracleSimDi(pNtkCone, pNtkMiter->pModel, NumKeys, KeyWithFreq, KeyNoFreq, WrongKeyValue);
 	      ClapAttack_OracleSimDi(pNtkCone, pFullDi, NumKeys, KeyWithFreq, KeyNoFreq, WrongKeyValue);
 
-
+	      // Debug print
 	      printf("Wrong KeyValue: ");
 	      for (k=0; k<NumKeys; k++)
 		printf(" %d", WrongKeyValue[k]);
@@ -597,7 +505,6 @@ void ClapAttack_TraversalRecursive( Abc_Ntk_t * pNtk, Abc_Obj_t * pCurNode, stru
 		if ( !(*ppCurKeyCnf) ) {
 		  ClapAttack_InitKeyCnf( ppCurKeyCnf, NumKeys, WrongKeyValue, KeyNameTmp );
 		  fCurKeyCnfAlloc = 1;
-		  //ppCurKeyCnf = &pCurKeyCnf;
 		} else {
 		  ClapAttack_UpdateKeyCnf( ppCurKeyCnf, NumKeys, WrongKeyValue, KeyNameTmp );
 		}
@@ -607,30 +514,36 @@ void ClapAttack_TraversalRecursive( Abc_Ntk_t * pNtk, Abc_Obj_t * pCurNode, stru
 	      if ( NumKeys == 1) {
 		KeyValue = (WrongKeyValue[0] + 1) % 2;
 		ClapAttack_UpdateKey(KeyNameTmp[0], KeyValue, pGlobalBsiKeys);
-		//Abc_NtkDelete( pNtkMiter );
-		//ABC_FREE(pNtkMiter);
-		//break;
 	      } else {
+
 		// Evaluate partial key logic for complete key info
 		for (k=0; k<NumKeys; k++) {
-		  //printf("KeyName: %s \n\n\n\n\n", KeyNameTmp[k]);
+
+		  // This requires updating the partial key info miter and attempting to infer key values
 		  ClapAttack_PartialKeyInferenceMiter( *ppCurKeyCnf, &pInferPartialKeyMiter, KeyNameTmp[k] );
 		  PartialKeySatStatus = ClapAttack_RunSat(pInferPartialKeyMiter);
 		  Abc_NtkDelete( pInferPartialKeyMiter );
 		  
+		  // Initially, this will always fall through. The second time, this will always break
+		  // unless a new key value is discovered. This is the case because it is possible
+		  // discovering one key value will allow others to be inferred, so we must check again.
 		  if ( PartialKeySatStatus && (PartialKeySatStatus != -1) ) {		    
+
+		    // Again, are we SAT?
 		    if ( !ClapAttack_RunSat(*ppCurKeyCnf) ){
 		      
+		      // Determine which key value we determined and update it
 		      Abc_NtkForEachPi( *ppCurKeyCnf, pKey, m ) {
 			if ( !strcmp(Abc_ObjName(pKey), KeyNameTmp[k]) ) {
 			  KeyValue = (*ppCurKeyCnf)->pModel[m];
+
+			  // Either remove the key or set it to constant 1.
 			  ClapAttack_UpdateKey(KeyNameTmp[k], KeyValue, pGlobalBsiKeys);
 			  printf("We determined that key %s is %d\n", Abc_ObjName(pKey), KeyValue);
-			  //exit(0);
-			  // Either remove the key or set it to constant 1.
 			  break;
 			}
 		      }
+
 		      // Optimize out key from partial CNF
 		      ntkTmp = Abc_NtkToLogic( *ppCurKeyCnf );
 		      Abc_NtkDelete( *ppCurKeyCnf );
@@ -648,76 +561,58 @@ void ClapAttack_TraversalRecursive( Abc_Ntk_t * pNtk, Abc_Obj_t * pCurNode, stru
 		      ntkTmp = Abc_NtkStrash( *ppCurKeyCnf, 0, 1, 0 );
 		      Abc_NtkDelete( *ppCurKeyCnf );
 		      *ppCurKeyCnf = ntkTmp;
-			
+
+		      // Cleanup
 		      if ( (Abc_NtkPiNum(*ppCurKeyCnf) < 2) && fCurKeyCnfAlloc) {
-			//ABC_FREE(pCurKeyCnf);
 			Abc_NtkDelete( *ppCurKeyCnf );
 			*ppCurKeyCnf = NULL;
 			break;
 		      } 
-		      //printf("After\n");
 		    } else {
+		      // This should never occur... somehow the correct key was eliminated
 		      printf("The key is somehow UNSAT... Exiting.\n\n");
 		      exit(0);
 		    }		      
 		  }
-		  //ABC_FREE(pInferPartialKeyMiter);
-		  
-		  //exit(0);
 		}
-
 	      }
+
+	      // Cleanup memory allocations
 	      free( WrongKeyValue );
 	      free( KeyWithFreq );
 	      free( KeyNoFreq );
 	    
-	    //printf("Key successfully simualted on oracle. The new inferred key is %s : %d \n", KeyNameTmp[0], KeyValue);
-	    
-	    // Print off updated keystore
+	      // Print off updated keystore
 	      printf("KeyStore is now: {");
 	      for (k=0; k<pGlobalBsiKeys->NumKeys; k++)
 		printf("%d, ", pGlobalBsiKeys->KeyValue[k]);
 	      printf("}\n\n");
-	      //exit(0);
-	      // Key found!
-	      // TODO - Update Keystore
-	      //free(ppNodeFreeList);
-	      //for(k=0; k<MaxKeysConsidered; k++)
-	      //  free(KeyNameTmp[k]);
-	      //free(KeyNameTmp);
-	      //return 1;
-	      /* End Probe Point Counter Comment */
 
 	      /* Probe Point Counter 
 	      SatStatus = 1;
 	      /* End Probe Point Counter */
 	    }
-	    //ABC_FREE(pNtkMiter);
 	  } else {
-	    //ABC_FREE(pNtkMiter);
 	    printf("Mitering failed. Proceed.\n");
 	  }
+
+	  // Delete miter and move on.
 	  Abc_NtkDelete( pNtkMiter );
-	  //if (!MiterStatus)
-	  //  Abc_NtkDelete( pNtkMiter );
-	} //else {
-	  //printf("This cone has %d key inputs. For now we only handle nodes with up to %d keys. Proceed.\n", NumKeys, MaxKeysConsidered);
-	//}
+
+	}
       } while( !SatStatus && !MiterStatus);
+
+      // Cleanup and delete network for the isolated cone we
+      // were traversing
       Abc_NtkDelete( pNtkCone );
-      //ABC_FREE(pNtkCone);
 
       for(k=0; k<MaxKeysConsidered; k++)
 	free(KeyNameTmp[k]);
       free(KeyNameTmp);
       free(ppNodeFreeList);
-    } //else
-      //printf("We already visited this node.\n");
+    } 
 
-
-
-
-    
+    // If we have fewer than the maximum allowable keys, continue fan-out traverse. (Recurse)
     if( NumKeys <= MaxKeysConsidered ) {
       ClapAttack_TraversalRecursive( pNtk, pNode, pGlobalBsiKeys, pOracleKey, MaxKeysConsidered, ppCurKeyCnf, pTotalProbes );
     }
@@ -725,22 +620,16 @@ void ClapAttack_TraversalRecursive( Abc_Ntk_t * pNtk, Abc_Obj_t * pCurNode, stru
   
   // Save off any key cnf info we found to the global key CNF store
   if ( (*ppCurKeyCnf) && fCurKeyCnfAlloc ) {
-    ////printf("In we go!\n\n\n\n\n\n\n");
     if( ClapAttack_UpdateGlobalKeyCnf ( ppCurKeyCnf, pGlobalBsiKeys ) )
       printf("Global CNF Update Failed. \n");
     Abc_NtkDelete( *ppCurKeyCnf );
   }
-
-
-    
-
-
-
 }
 
+// In order to run a multinode probe, we must merge the miters for EVERY node we plan to extract leakage from in order
+// to maximize the the leakage generated by the esnsitizing inputs for the circuit. Note, this only matters when multiple nodes
+// are probed simultaneously.
 void ClapAttack_CombineMitersHeuristic( struct SatMiterList ** ppSatMiterListOld, struct SatMiterList ** ppSatMiterListNew, int * pMaxNodesConsidered, int MaxKeysConsidered, int MaxPiNum, int fConsiderAll ) {
-
-
   int i, j, k, m, n, SatStatus, NumKeysOld, NumKeysNew, CurProbeCount, CurKeyIdx, fNodePresent, CurKeyIdxNew, NumKeysNew_rev, MiterListLen;
   float IdentifiableKeys, IdentifiableKeysOld, IdentifiableKeysMax;
   Abc_Ntk_t *pNtkMiter, *pNtkMiterBase;
@@ -749,7 +638,7 @@ void ClapAttack_CombineMitersHeuristic( struct SatMiterList ** ppSatMiterListOld
   char **CurKeysInferred;
   char **CurKeysInferredMiter;
 
-
+  // Allocate data structures to store the key names we are inferring information about.
   CurKeysInferred = (char **)malloc( sizeof(char *) * (MaxPiNum));
   for (i=0; i<MaxPiNum; i++) {
     CurKeysInferred[i] = (char *)malloc( sizeof(char) * 100);
@@ -776,32 +665,17 @@ void ClapAttack_CombineMitersHeuristic( struct SatMiterList ** ppSatMiterListOld
     // Initialize ppNode list of matched nodes in miter
     for ( i=0; i<pMiterListCurBase->MatchedNodes; i++ ) {
       ppNode[i] = pMiterListCurBase->ppSatNode[i];
-      //printf(" Node Added Base: %s\n", Abc_ObjName(pMiterListCurBase->ppSatNode[i]));
     }
 
     // Generate list of solved for keys for this base-node
     for( CurKeyIdxNew=0; CurKeyIdxNew<pMiterListCurBase->NumKeys; CurKeyIdxNew++ ) {
       // Are we looking at a key input?
-      //printf("Old: %s\n",  pMiterListCurBase->KeyNames[CurKeyIdxNew]);
       strcpy(CurKeysInferredMiter[CurKeyIdxNew], pMiterListCurBase->KeyNames[CurKeyIdxNew]);
     }    
 
-    /*
-    CurKeyIdx = 0;
-    Abc_NtkForEachPi( pMiterListCurBase->pMiter, pPi, n ) {
-      // Are we looking at a key input?
-      if( strstr(Abc_ObjName(pPi), "key") ) {
-	if( strstr(Abc_ObjName(pPi), "_1") ) {
-	  strcpy(CurKeysInferred[CurKeyIdx], Abc_ObjName(pPi));
-	  //printf("New: %s\n", CurKeysInferred[CurKeyIdx]);
-	  CurKeyIdx++;
-	}
-      }
-      }*/
     // Generate list of solved for keys for this base-node
     for( CurKeyIdx=0; CurKeyIdx<pMiterListCurBase->NumKeys; CurKeyIdx++ ) {
       // Are we looking at a key input?
-      //printf("Old: %s\n",  pMiterListCurBase->KeyNames[CurKeyIdxNew]);
       strcpy(CurKeysInferred[CurKeyIdx], pMiterListCurBase->KeyNames[CurKeyIdx]);
     }    
     
@@ -821,32 +695,21 @@ void ClapAttack_CombineMitersHeuristic( struct SatMiterList ** ppSatMiterListOld
       // Add remaining nodes to ppNode list
       for ( j=0; j<pMiterListCurForward->MatchedNodes; j++ ) {
 	
-	// Reset flag that avoids duplicate nodes
-	//fNodePresent = 0;
-
-	
 	// If not, add the node to ppnode list
 	if ( j == pMiterListCurForward->MatchedNodes-1 ) {
 
 	  // If the number of considered nodes is more than 1, we can only
 	  // Consider miters that share at least one node... otherwise,
 	  // they will never be SAT.
-	  // Miter doesnt have overlap... it will be UNSAT. Break
-	  //if ( (i >= *pMaxNodesConsidered) && (i > 2) ) {
-	  //  SatStatus = 1;
-	  //  break;
-	  //}
 	  if (pMiterListCurForward->ppSatNode[j] != ppNode[k]) {
 
-
 	    // See if we're actually generating a new key...
-
-
 	    for( m=0; m<pMiterListCurForward->NumKeys; m++ ) {
 	      // Are we looking at a key input?
 	      fNodePresent = 0;
+
+	      // are we looking at any new key inputs here from this node?
 	      for( n = 0; n < CurKeyIdxNew; n++) {
-		//printf("Compare %s %s\n", CurKeysInferredMiter[n], pMiterListCurForward->KeyNames[m]);
 		if ( !strcmp(CurKeysInferredMiter[n], pMiterListCurForward->KeyNames[m]) ) {
 		  fNodePresent = 1;
 		}
@@ -856,9 +719,6 @@ void ClapAttack_CombineMitersHeuristic( struct SatMiterList ** ppSatMiterListOld
 	      if (!fNodePresent) {
 		strcpy(CurKeysInferredMiter[NumKeysNew_rev], pMiterListCurForward->KeyNames[m]);
 		NumKeysNew_rev++;
-		//printf("Key Name Added1: %s\n", pMiterListCurForward->KeyNames[m]);
-		//SatStatus = 0;
-		//printf("OLD\n");
 	      }
 	    }
 
@@ -877,36 +737,12 @@ void ClapAttack_CombineMitersHeuristic( struct SatMiterList ** ppSatMiterListOld
 	      }
 	    }
 
-	    /*
-	    // See if we're actually generating a new key...
-	    fNodePresent = 0;
-	    Abc_NtkForEachPi( pMiterListCurForward->pMiter, pPi, m ) {
-	      // Are we looking at a key input?
-	      if( strstr(Abc_ObjName(pPi), "key") ) {
-		if( strstr(Abc_ObjName(pPi), "_1") ) {
-		  for( n = 0; n < CurKeyIdx; n++) {
-		    if ( !strcmp(CurKeysInferred[n], Abc_ObjName(pPi)) ) {
-		      fNodePresent = 1;
-		    }
-		  }
-
-		  if (!fNodePresent) {
-		    SatStatus = 0;
-		    printf("NEW\n");
-		    //printf("Key Name New: %s\n", Abc_ObjName(pPi));
-		  }
-		}
-	      }
-	      }*/
-	    
 	    ppNode[i] = pMiterListCurForward->ppSatNode[j];
 	    i++;
 	  }
 	  
 	  break;
-	} //else {
-	//  printf(" Node NOT Added: %s\n", Abc_ObjName(pMiterListCurForward->ppSatNode[j]));
-	//}
+	}
 	
 	// Check if node is already present in ppnode list
 	if ( pMiterListCurForward->ppSatNode[j] == ppNode[k] ) {
@@ -914,70 +750,31 @@ void ClapAttack_CombineMitersHeuristic( struct SatMiterList ** ppSatMiterListOld
 	} else {
 	  break;
 	}
-	//	  fNodePresent = 1;	
       }
 
-
-           
-      // Edge case... too much overlap. We're not gaining info.
-      //if ( i < *pMaxNodesConsidered )
-      //SatStatus = 1;
-
-      //printf("Here, Sat Status is: %d\n\n", SatStatus);
-      
+      // Can this miter be satisfied? Note, initially, if we have a new key input
+      // this if statement will awlays be entered.
       if (!SatStatus) {
 
 	// Set miter that will be combined into.
 	pNtkMiter = Abc_NtkDup( pMiterListCurForward->pMiter );
 
-	
 	// Merge miters
 	if ( !Abc_NtkAppendSilentAnd( pNtkMiter, pNtkMiterBase, 0 ) ) {
 	  Abc_Print( -1, "Appending the networks failed.\n" );
 	  return;
 	}
-
-	//printf("Running SAT on Combined Miter circuit.\n");
-	
 	
 	// Is miter SAT?
 	if ( !ClapAttack_RunSat(pNtkMiter) ) {
 
-	  
-	  /*// Calculate how many keys we will discover
-	  NumKeysNew = 0;
-	  Abc_NtkForEachPi( pNtkMiter, pPi, k ) {
-	    // Are we looking at a key input?
-	    if( strstr(Abc_ObjName(pPi), "key") ) {
-	      //printf("Key Name New: %s\n", Abc_ObjName(pPi));
-	      NumKeysNew++;
-	    }
-	  }
-
-	  // Calculate how many keys we discovered with old miter
-	  NumKeysOld = 0;
-	  Abc_NtkForEachPi( pMiterListCurForward->pMiter, pPi, k ) {
-	    // Are we looking at a key input?
-	    if( strstr(Abc_ObjName(pPi), "key") ) {
-	      NumKeysOld++;
-	      //printf("Key Name Old: %s\n\n\n", Abc_ObjName(pPi));
-	    }
-	    }*/
-	  
+	  // Miter is SAT and therefore good for leakage. Save off this configuration for later.
 	  NumKeysNew = NumKeysNew_rev;
 	  NumKeysOld = CurKeyIdxNew;
-
-	  //ClapAttack_WriteMiterVerilog(pMiterListCurForward->pMiter, "old_miter.v");
-	  //ClapAttack_WriteMiterVerilog(pNtkMiter, "new_miter.v");
-	  
-	  // Calculate conservative estimate of identifiable keys
-	  //printf("Old: %d, New: %d\n", NumKeysOld, NumKeysNew);
 	  
 	  // We will always at least find as many keys as the best submiter...
 	  IdentifiableKeysOld = ( pMiterListCurForward->IdentifiableKeyBits >  pMiterListCurBase->IdentifiableKeyBits ) ? pMiterListCurForward->IdentifiableKeyBits :  pMiterListCurBase->IdentifiableKeyBits;
-	  //printf("Old bits: %f, New bits: %f\n\n\n", pMiterListCurForward->IdentifiableKeyBits, pMiterListCurBase->IdentifiableKeyBits);
-	  
-	  // We also may find additional keys
+	  // We also may find additional keys -- Calcualte them
 	  if ( (*pMaxNodesConsidered == (pMiterListCurBase->MatchedNodes+1)) && (NumKeysNew > NumKeysOld) ) {
 	    IdentifiableKeys = IdentifiableKeysOld + (1.0/(1<<(MaxKeysConsidered-1)));
 
@@ -1001,54 +798,20 @@ void ClapAttack_CombineMitersHeuristic( struct SatMiterList ** ppSatMiterListOld
 		}
 	      }
 	      
-	      /*
-	      // See if we're actually generating a new key...
-	      fNodePresent = 0;
-	      Abc_NtkForEachPi( pNtkMiter, pPi, m ) {
-	      // Are we looking at a key input?
-	      if( strstr(Abc_ObjName(pPi), "key") ) {
-	      if( strstr(Abc_ObjName(pPi), "_1") ) {
-	      for( n = 0; n < CurKeyIdx; n++) {
-	      if ( !strcmp(CurKeysInferred[n], Abc_ObjName(pPi)) ) {
-	      fNodePresent = 1;
-	      }
-	      }
-	      
-	      if (!fNodePresent) {
-	      printf("Key Name Added: %s\n", Abc_ObjName(pPi));
-	      strcpy(CurKeysInferred[CurKeyIdx], Abc_ObjName(pPi));
-	      CurKeyIdx++;
-	      }
-	      
-	      }
-	      }
-	      }*/
-
 	      // Increase length of miter list
 	      MiterListLen++;
 	      
 	      // Update the miterlist with a new functional pairing	      
 	      ClapAttack_UpdateSatMiterList( ppSatMiterListNew, ppNode, pNtkMiter, NumKeysNew_rev, CurKeysInferredMiter, *pMaxNodesConsidered, IdentifiableKeys, pNtkMiter->pModel );
 	    }
-	  }/* else {
-	    printf("Fail1\n");
-
-	    if (MaxKeysConsidered == 2) {
-	      printf("Old: %d, New: %d\n", NumKeysOld, NumKeysNew);
-	      printf("Considered: %d, Actual %d\n", *pMaxNodesConsidered, (pMiterListCurBase->MatchedNodes)+1);
-	      ClapAttack_WriteMiterVerilog(pNtkMiterBase, "old_miter.v");
-	      ClapAttack_WriteMiterVerilog(pNtkMiter, "new_miter.v");
-	      //exit(0);
-	    }
-	    }*/
-	  //else
-	    //IdentifiableKeys = IdentifiableKeysOld;
-	} //else
-	  //printf("Fail2\n");
+	  }
+	}
 	
 	// Cleanup
 	Abc_NtkDelete( pNtkMiter );
+
       } else {
+	// Did we look at all possible combined miters?
 	if ( !fConsiderAll ) {
 	  break;
 	}
@@ -1056,13 +819,11 @@ void ClapAttack_CombineMitersHeuristic( struct SatMiterList ** ppSatMiterListOld
 
       // Consider next forward node...
       pMiterListCurForward = pMiterListCurForward->pNext;
-      
     }
 
     // Consider next base node
     pMiterListCurBase = pMiterListCurBase->pNext;
     Abc_NtkDelete( pNtkMiterBase );
-    
   }
 
   // Cleanup
@@ -1079,186 +840,12 @@ void ClapAttack_CombineMitersHeuristic( struct SatMiterList ** ppSatMiterListOld
   free(ppNode);
 }
 
-
-  /*
-  int i, j, k, m, n, SatStatus, NumKeysOld, NumKeysNew, CurProbeCount, CurKeyIdx, fNodePresent, NewMaxNodesConsidered, fCurNodeDone;
-  float MaxIdentifiableKeys = 0;
-  float IdentifiableKeys, IdentifiableKeysOld;
-  Abc_Ntk_t *pNtkMiter, *pNtkMiterBase;
-  Abc_Obj_t ** ppNode;
-  struct SatMiterList *pMiterListCurBase, *pMiterListCurForward;
-  char **CurKeysInferred;
-
-    CurKeysInferred = (char **)malloc( sizeof(char *) * (MaxPiNum));
-  for (i=0; i<MaxPiNum; i++) {
-    CurKeysInferred[i] = (char *)malloc( sizeof(char) * 100);
-  }
-
-  // Figure out max list length for mallco of ppnode list
-  NewMaxNodesConsidered = 0;
-  for ( pMiterListCurBase = *ppSatMiterListOld; pMiterListCurBase->pNext; pMiterListCurBase = pMiterListCurBase->pNext) {
-    if (pMiterListCurBase->MatchedNodes + 1 > NewMaxNodesConsidered)
-      NewMaxNodesConsidered = pMiterListCurBase->MatchedNodes + 1;
-  }
-
-  // malloc ppnode based on longest possible matched list
-  ppNode = (Abc_Obj_t **) malloc ( sizeof(Abc_Obj_t *) * NewMaxNodesConsidered );
-
-  // Reset Set miter list pointers to test combined miters for heuristic
-  pMiterListCurBase = *ppSatMiterListOld;
-  
-  // Combine pairwise compatible miters
-  while ( pMiterListCurBase ) {
-    
-    // Set base miter without combination to combine into throughout inner loop
-    pNtkMiterBase =  Abc_NtkDup( pMiterListCurBase->pMiter );
-
-    // Initialize ppNode list of matched nodes in miter
-    for ( i=0; i<pMiterListCurBase->MatchedNodes; i++ ) {
-      ppNode[i] = pMiterListCurBase->ppSatNode[i];
-      //printf(" Node Added Base: %s\n", Abc_ObjName(pMiterListCurBase->ppSatNode[i]));
-    }
-
-    // Set forward pointer
-    pMiterListCurForward = pMiterListCurBase->pNext;
-    CurProbeCount = 0;
-
-    // Generate list of solved for keys for this base-node
-    for( CurKeyIdx=0; CurKeyIdx<pMiterListCurBase->NumKeys; CurKeyIdx++ ) {
-      // Are we looking at a key input?
-      strcpy(CurKeysInferred[CurKeyIdx], pMiterListCurBase->KeyNames[CurKeyIdx]);
-      printf(" Current Keys: %s\n", CurKeysInferred[CurKeyIdx]);
-    }
-    
-    while ( pMiterListCurForward ) {
-
-      // Reset SAT status flag and Identifiable key count
-      SatStatus = 1;
-      IdentifiableKeys = 0;
-      i=pMiterListCurBase->MatchedNodes;
-      k=0;
-      NumKeysNew = CurKeyIdx;
-      fCurNodeDone = 0;
-     
-      // Add remaining nodes to ppNode list
-      for ( j=0; j<pMiterListCurForward->MatchedNodes; j++ ) {
-	
-	// If not, add the node to ppnode list
-	if ( j == pMiterListCurForward->MatchedNodes-1 ) {
-	  if (pMiterListCurForward->ppSatNode[j] != ppNode[k]) {
-	    // See if we're actually generating a new key...
-	    fNodePresent = 0;
-	    for( m=0; m<pMiterListCurForward->NumKeys; m++ ) {
-	      // Are we looking at a key input?
-	      for( n = 0; n < CurKeyIdx; n++) {
-		printf(" Considered key: %s Old Key Compared to: %s, curkeyidx %d, NumKeys: %d\n", CurKeysInferred[n], pMiterListCurForward->KeyNames[m], CurKeyIdx, pMiterListCurForward->NumKeys);
-		if ( !strcmp(CurKeysInferred[n], pMiterListCurForward->KeyNames[m]) ) {
-		      fNodePresent = 1;
-		}
-	      }
-
-	      // We have a new key
-	      if (!fNodePresent) {
-		printf(" New Keys: %s\n", pMiterListCurForward->KeyNames[m]);
-		strcpy(CurKeysInferred[NumKeysNew], pMiterListCurForward->KeyNames[m]);
-		NumKeysNew++;
-		SatStatus = 0;
-	      }
-	    }
-	    ppNode[i] = pMiterListCurForward->ppSatNode[j];
-	    i++;
-	  }
-
-	  break;
-	}
-
-	// Check if node is already present in ppnode list
-	if ( pMiterListCurForward->ppSatNode[j] == ppNode[k] ) {
-	  k++;
-	} else {
-	  fCurNodeDone = 1;
-	  break;
-	}
-      }
-
-      if (!SatStatus) {
-	// Set miter that will be combined into.
-	pNtkMiter = Abc_NtkDup( pMiterListCurForward->pMiter );
-
-	
-	// Merge miters
-	if ( !Abc_NtkAppendSilentAnd( pNtkMiter, pNtkMiterBase, 0 ) ) {
-	  Abc_Print( -1, "Appending the networks failed.\n" );
-	  return;
-	}
-
-	printf("Running SAT on Combined Miter circuit.\n");
-
-	// Is miter SAT?
-	if ( !ClapAttack_RunSat(pNtkMiter) ) {
-	  
-
-	  NumKeysOld = CurKeyIdx;
-
-	  // Calculate conservative estimate of identifiable keys
-	  printf("Old: %d, New: %d\n\n\n", NumKeysOld, NumKeysNew);
-	  
-	  // We will always at least find as many keys as the best submiter...
-	  IdentifiableKeysOld = ( pMiterListCurForward->IdentifiableKeyBits >  pMiterListCurBase->IdentifiableKeyBits ) ? pMiterListCurForward->IdentifiableKeyBits :  pMiterListCurBase->IdentifiableKeyBits;
-	  NewMaxNodesConsidered = ( pMiterListCurForward->MatchedNodes >  pMiterListCurBase->MatchedNodes ) ? pMiterListCurForward->MatchedNodes+1 : pMiterListCurBase->MatchedNodes + 1;
-	  
-	  // We also may find additional keys
-	  if (NumKeysNew > NumKeysOld) {
-	    IdentifiableKeys = IdentifiableKeysOld + (1.0/(1<<(MaxKeysConsidered-1)));
-
-	    // Update the miterlist with a new functional pairing
-	    if ( MaxIdentifiableKeys <= IdentifiableKeys) {
-	      ClapAttack_UpdateSatMiterList( ppSatMiterListNew, ppNode, pNtkMiter, NumKeysNew, CurKeysInferred, NewMaxNodesConsidered, IdentifiableKeys, pNtkMiter->pModel );
-	      MaxIdentifiableKeys = IdentifiableKeys;
-	    }
-	  }
-	}
-	
-	// Cleanup
-	Abc_NtkDelete( pNtkMiter );
-      } 
-      if (fCurNodeDone && (*pMaxNodesConsidered > 2)) {
-	break;
-      }
-
-
-      // Consider next forward node...
-      pMiterListCurForward = pMiterListCurForward->pNext;
-      
-    }
-
-    // Consider next base node
-    pMiterListCurBase = pMiterListCurBase->pNext;
-    Abc_NtkDelete( pNtkMiterBase );
-    
-  }
-
-  // Cleanup
-  for (i=0; i<MaxPiNum; i++) {
-    free(CurKeysInferred[i]);
-  }
-  free(CurKeysInferred);
-  
-  free(ppNode);
-
-}
-*/ 
-
-
+// Recurseively traverse nodes in the network to identify probe-able locations.
 void ClapAttack_TraversalRecursiveHeuristic( Abc_Ntk_t * pNtk, Abc_Obj_t * pCurNode, struct BSI_KeyData_t * pGlobalBsiKeys, int MaxKeysConsidered, Abc_Ntk_t ** ppCurKeyCnf, struct SatMiterList ** ppSatMiterList, int *pNumProbes, int MaxProbes ) {
-
   int i, j, k, SatStatus, MiterStatus, NumKeys, NumKnownKeys, fCurKeyCnfAlloc;
   Abc_Ntk_t *pNtkCone, *pNtkMiter;
   Abc_Obj_t * pNode, * pPi, **ppNodeFreeList;
   char ** KeyNameTmp;
-
-
-
 
   // Initialize partial key info to NULL
   fCurKeyCnfAlloc = 0;
@@ -1270,7 +857,6 @@ void ClapAttack_TraversalRecursiveHeuristic( Abc_Ntk_t * pNtk, Abc_Obj_t * pCurN
 
     // Have we visited this node before?
     if (!pNode->fMarkC) {
-
 
       // Initialzie free list to the number of keys present...
       ppNodeFreeList = (Abc_Obj_t **)malloc( sizeof(Abc_Obj_t *) * pGlobalBsiKeys->NumKeys);
@@ -1290,21 +876,18 @@ void ClapAttack_TraversalRecursiveHeuristic( Abc_Ntk_t * pNtk, Abc_Obj_t * pCurN
 	free(ppNodeFreeList);
 	continue;
       }
-
-
       
       // Check supports ... if only one is an unknown key,
       // process it and continue fanout
       ClapAttack_IsolateCone(pNtk, &pNtkCone, pNode);
-      //ClapAttack_WriteMiterVerilog(pNtkCone, "cone.v");
       
       // Loop over the miter generation phase until SAT fails
       NumKeys = 0;
       NumKnownKeys = 0;
-      
       SatStatus = 1;
       MiterStatus = 1;
-      
+
+      // Count the key inputs in the cone. If there are too many, ignore the node and halt traversal.
       Abc_NtkForEachPi( pNtkCone, pPi, j ) {
 	// Are we looking at a key input?
 	if( strstr(Abc_ObjName(pPi), "key") ) {
@@ -1322,28 +905,23 @@ void ClapAttack_TraversalRecursiveHeuristic( Abc_Ntk_t * pNtk, Abc_Obj_t * pCurN
       // Delete known keys from cone.
       if ( NumKnownKeys )
 	ClapAttack_DelKnownKeys( ppNodeFreeList, NumKnownKeys );
-            
+
+      // Can we evaluate this node (i.e. does it have the currently considered number of keys as input)?
       if ( (NumKeys == MaxKeysConsidered) && NumKeys ) {
-	
+
+	// Generate the logical miter to infer whether key leakage occurs at this node.
 	printf("Evaluating node %s\n", Abc_ObjName(pNode) );	  
-	//printf("The number of keys is: %d\n", NumKeys);	  
-	//printf("Generating miter circuit.\n");       
-	
 	MiterStatus = ClapAttack_MakeMiterHeuristic(pNtkCone, *ppCurKeyCnf, &pNtkMiter );
 
+	// Did the miter generate successfully?
 	if (!MiterStatus) {
 	  
-	  //printf("Running SAT on Miter circuit.\n");       
-	  //ClapAttack_WriteMiterVerilog(pNtkMiter, Abc_ObjName(pNode));
+	  // Run SAT on the generated miter to find sensitizing inputs
 	  SatStatus = ClapAttack_RunSat(pNtkMiter);
-	  
+
+	  // Did SAT return sensitizing inputs?
 	  if (!SatStatus) {
-
-	    //ClapAttack_WriteMiterVerilog(pNtkCone, Abc_ObjName(pNode));
-	  //ClapAttack_WriteMiterVerilog(pNtkMiter, "miter.v");
-
 	    // Update SAT node list with new Sat miter
-	    //printf(" Test: %f %d \n\n\n",  1.0/(1<<(MaxKeysConsidered-1)), MaxKeysConsidered);
 	    pNode->fMarkC = 1;
 	    (*pNumProbes)++;
 	    ClapAttack_UpdateSatMiterList( ppSatMiterList, &pNode, pNtkMiter, NumKeys, KeyNameTmp, 1, 1.0/(1<<(MaxKeysConsidered-1)), pNtkMiter->pModel );
@@ -1351,33 +929,32 @@ void ClapAttack_TraversalRecursiveHeuristic( Abc_Ntk_t * pNtk, Abc_Obj_t * pCurN
 	    // Node is UNSAT, but has the right number of keys... It's useless so mark it
 	    pNode->fMarkC = 1;
 	  }
+
 	} else {
 	  printf("Mitering failed. Proceed.\n");
 	}
+
+	// Cleanup
 	Abc_NtkDelete( pNtkMiter );
       }
+
+      // Cleanup
       Abc_NtkDelete( pNtkCone );
       for(k=0; k<MaxKeysConsidered; k++)
 	free(KeyNameTmp[k]);
       free(KeyNameTmp);
       free(ppNodeFreeList);
-
-
     }
 
-
-  
     // Recurse
     if( (NumKeys <= MaxKeysConsidered) && (*pNumProbes <= MaxProbes) ) {
       ClapAttack_TraversalRecursiveHeuristic( pNtk, pNode, pGlobalBsiKeys, MaxKeysConsidered, ppCurKeyCnf, ppSatMiterList, pNumProbes, MaxProbes );
     }
   }
-
 }
 
-// Evaluate a known model for heuristic case
+// Evaluate/simulate a multinode EOFM probe and infer key information leakage that will be produced.
 void ClapAttack_EvalMultinodeProbe ( struct SatMiterList *pSatMiter, Abc_Ntk_t *pNtk, struct BSI_KeyData_t * pGlobalBsiKeys, int *pOracleKey, Abc_Ntk_t ** ppCurKeyCnf, int MaxKeysConsidered ) {
-
   int *pFullDi;
   int i, j, k, m, NumKeys, NumKnownKeys, *KeyWithFreq, *KeyNoFreq, *WrongKeyValue, KeyValue, PartialKeySatStatus, fCurKeyCnfAlloc, fRerunInfer;
   Abc_Ntk_t *pNtkCone, *pInferPartialKeyMiter, *ntkTmp;
@@ -1385,15 +962,8 @@ void ClapAttack_EvalMultinodeProbe ( struct SatMiterList *pSatMiter, Abc_Ntk_t *
   char ** KeyNameTmp;
   struct BSI_KeyData_t GlobalBsiKeysTmp;
   struct BSI_KeyData_t *pGlobalBsiKeysTmp;
-  //struct SatMiterList {
-  //Abc_Obj_t ** ppSatNode;
-  //int MatchedNodes;
-  //Abc_Ntk_t *pMiter;
-  //float IdentifiableKeyBits;
-  //struct SatMiterList * pNext;
-  //struct SatMiterList * pPrev;
-  //};
 
+  // Initialize data structure to hold nodes to be free'd/removed and current keys being considered for probing
   ppNodeFreeList = (Abc_Obj_t **)malloc( sizeof(Abc_Obj_t *) * pGlobalBsiKeys->NumKeys);
 
   KeyNameTmp = (char **)malloc( sizeof(char *) * MaxKeysConsidered);
@@ -1401,7 +971,7 @@ void ClapAttack_EvalMultinodeProbe ( struct SatMiterList *pSatMiter, Abc_Ntk_t *
     KeyNameTmp[j] = (char *)malloc( sizeof(char) * 100);
   }
 
-  // Temporarily freeze off keystore
+  // Temporarily freeze copy of keystore
   pGlobalBsiKeysTmp = &GlobalBsiKeysTmp;
   ClapAttack_CopyKeyStore( pGlobalBsiKeys, pGlobalBsiKeysTmp );
   
@@ -1433,30 +1003,9 @@ void ClapAttack_EvalMultinodeProbe ( struct SatMiterList *pSatMiter, Abc_Ntk_t *
     if ( NumKnownKeys )
       ClapAttack_DelKnownKeys( ppNodeFreeList, NumKnownKeys );
 
-    // Mark node as evaluated.
-    //pNode->fMarkC = 1;
-	
-    //if ( (NumKeys <= MaxKeysConsidered) && NumKeys ) {
-
+    // Status Prints
     printf("Evaluating node %s\n", Abc_ObjName(pNode) );	  
     printf("The number of keys is: %d\n", NumKeys);	  
-    // Remove unused logic and clean the PIs
-    //ClapAttack_CleanCone(&pNtkCone);
-    //ClapAttack_WriteMiterVerilog(pNtkCone, "cone.v");
-    
-    // We're processing the node. Mark it so we don't do this again.
-    // If it fails here, there is no information we can ever gain
-    //pNode->fMarkC = 1;
-    
-    //printf("Generating miter circuit.\n");       
-    //ClapAttack_WriteMiterVerilog(pNtkCone, "cone_test1.v");
-    //MiterStatus = ClapAttack_MakeMiter( pNtkCone, *ppCurKeyCnf, &pNtkMiter );
-    //Abc_NtkPrintIo( stdout, pNtkMiter, 1 );
-    //Abc_NtkPrintIo( stdout, pNtkCone, 1 );
-    
-    //if (!MiterStatus) {
-    
-    //ClapAttack_WriteMiterVerilog(pNtkCone, Abc_ObjName(pNode));
     
     // Malloc key values from SAT to infer from
     KeyWithFreq = (int *)malloc( sizeof(int) * NumKeys );
@@ -1472,7 +1021,8 @@ void ClapAttack_EvalMultinodeProbe ( struct SatMiterList *pSatMiter, Abc_Ntk_t *
 
     // Cleanup
     free(pFullDi);
-    
+
+    // Debug printing
     printf("Wrong KeyValue: ");
     for (k=0; k<NumKeys; k++)
       printf(" %d", WrongKeyValue[k]);
@@ -1484,40 +1034,46 @@ void ClapAttack_EvalMultinodeProbe ( struct SatMiterList *pSatMiter, Abc_Ntk_t *
       if ( !(*ppCurKeyCnf) ) {
 	ClapAttack_InitKeyCnf( ppCurKeyCnf, NumKeys, WrongKeyValue, KeyNameTmp );
 	fCurKeyCnfAlloc = 1;
-	//ppCurKeyCnf = &pCurKeyCnf;
       } else {
 	ClapAttack_UpdateKeyCnf( ppCurKeyCnf, NumKeys, WrongKeyValue, KeyNameTmp );
       }
     }
     
-    // Short term hack to handle case wehre key is of length 1
+    // Short term hack to handle case where key is of length 1
     if ( NumKeys == 1) {
       KeyValue = (WrongKeyValue[0] + 1) % 2;
       ClapAttack_UpdateKey(KeyNameTmp[0], KeyValue, pGlobalBsiKeys);
-      //Abc_NtkDelete( pNtkMiter );
-      //ABC_FREE(pNtkMiter);
-      //break;
     } else {
-      // Evaluate partial key logic for complete key info
+      
+      // Otherwise, evaluate partial key logic for complete key info
       for (k=0; k<NumKeys; k++) {
-	//printf("KeyName: %s \n\n\n\n\n", KeyNameTmp[k]);
+
+	// Build a miter from all available partial key information
 	ClapAttack_PartialKeyInferenceMiter( *ppCurKeyCnf, &pInferPartialKeyMiter, KeyNameTmp[k] );
 	PartialKeySatStatus = ClapAttack_RunSat(pInferPartialKeyMiter);
 	Abc_NtkDelete( pInferPartialKeyMiter );
-	
+
+	// Initially, this will always fall through. The second time, this will always break
+	// unless a new key value is discovered. This is the case because it is possible
+	// discovering one key value will allow others to be inferred, so we must check again
 	if ( PartialKeySatStatus && (PartialKeySatStatus != -1) ) {		    
+
+	  // Is miter SAT? Can we infer key bits?
 	  if ( !ClapAttack_RunSat(*ppCurKeyCnf) ){
 	    
+	    // What can we infer? Iterate through each key input to find out.
 	    Abc_NtkForEachPi( *ppCurKeyCnf, pKey, m ) {
 	      if ( !strcmp(Abc_ObjName(pKey), KeyNameTmp[k]) ) {
 		KeyValue = (*ppCurKeyCnf)->pModel[m];
+
+		// Either remove the key or set it to constant 1.
 		ClapAttack_UpdateKey(KeyNameTmp[k], KeyValue, pGlobalBsiKeys);
 		printf("We determined that key %s is %d\n", Abc_ObjName(pKey), KeyValue);
-		//exit(0);
-		// Either remove the key or set it to constant 1.
+		
 		break;
 	      }
 	    }
+
 	    // Optimize out key from partial CNF
 	    ntkTmp = Abc_NtkToLogic( *ppCurKeyCnf );
 	    Abc_NtkDelete( *ppCurKeyCnf );
@@ -1531,77 +1087,35 @@ void ClapAttack_EvalMultinodeProbe ( struct SatMiterList *pSatMiter, Abc_Ntk_t *
 	    }
 	    
 	    // Check if we optimized out all the PIs but one.
-	    // IF so, free the partial info
 	    ntkTmp = Abc_NtkStrash( *ppCurKeyCnf, 0, 1, 0 );
 	    Abc_NtkDelete( *ppCurKeyCnf );
 	    *ppCurKeyCnf = ntkTmp;
 	    
+	    // IF so, free the partial info
 	    if ( (Abc_NtkPiNum(*ppCurKeyCnf) < 2) && fCurKeyCnfAlloc) {
-	      //ABC_FREE(pCurKeyCnf);
 	      Abc_NtkDelete( *ppCurKeyCnf );
 	      *ppCurKeyCnf = NULL;
 	      break;
 	    } 
-	    //printf("After\n");
 	  } else {
+
+	    // This should never occur. It indicates we eliminated hte correct key.
+	    // If we see it, terminate.
 	    printf("The key is somehow UNSAT... Exiting.\n\n");
 	    exit(0);
 	  }		      
 	}
-	//ABC_FREE(pInferPartialKeyMiter);
-	
-	//exit(0);
       }
-    
     }
+
+    // Cleanup memory allocations
     free( WrongKeyValue );
     free( KeyWithFreq );
     free( KeyNoFreq );
-    
-    //printf("Key successfully simualted on oracle. The new inferred key is %s : %d \n", KeyNameTmp[0], KeyValue);
-    
-    // Print off updated keystore
-    //printf("KeyStore is now: {");
-    //for (k=0; k<pGlobalBsiKeys->NumKeys; k++)
-    //  printf("%d, ", pGlobalBsiKeys->KeyValue[k]);
-    //printf("}\n\n");
-    //exit(0);
-    // Key found!
-    // TODO - Update Keystore
-    //free(ppNodeFreeList);
-    //for(k=0; k<MaxKeysConsidered; k++)
-    //  free(KeyNameTmp[k]);
-    //free(KeyNameTmp);
-    //return 1;
-    
-    //ABC_FREE(pNtkMiter);
-    //    } else {
-    //ABC_FREE(pNtkMiter);
-    //printf("Mitering failed. Proceed.\n");
-    //}
-    //Abc_NtkDelete( pNtkMiter );
-    //if (!MiterStatus)
-    //  Abc_NtkDelete( pNtkMiter );
-    //} //else {
-    //printf("This cone has %d key inputs. For now we only handle nodes with up to %d keys. Proceed.\n", NumKeys, MaxKeysConsidered);
-    //}
     Abc_NtkDelete( pNtkCone );
-  
-    // Save off any key cnf info we found to the global key CNF store
-    /*if ( (*ppCurKeyCnf) && fCurKeyCnfAlloc ) {
-      if( ClapAttack_UpdateGlobalKeyCnf ( ppCurKeyCnf, pGlobalBsiKeys ) )
-	printf("Global CNF Update Failed. \n");
-      Abc_NtkDelete( *ppCurKeyCnf );
-      }*/
   }
 
-
-
-  // Update known keys in partial key cnf
-  
-
-
-  // Realloc keyname tmp so that we can infer all keys from partial cnf we generated
+  // Free and Realloc keyname tmp so that we can infer all keys from partial cnf we generated
   for(k=0; k<MaxKeysConsidered; k++)
     free(KeyNameTmp[k]);
   free(KeyNameTmp);
@@ -1620,8 +1134,10 @@ void ClapAttack_EvalMultinodeProbe ( struct SatMiterList *pSatMiter, Abc_Ntk_t *
     }
   }
 
+  // Initialize so we always run while loop initially
   fRerunInfer = 1;
 
+  // Infer known key values from partial key information
   while (fRerunInfer) {
 
     // Clean up known keys in CNF
@@ -1631,26 +1147,32 @@ void ClapAttack_EvalMultinodeProbe ( struct SatMiterList *pSatMiter, Abc_Ntk_t *
     // Evaluate partial key logic for complete key info
     for (k=0; k<pGlobalBsiKeys->NumKeys; k++) {
 
+      // Is there any partial key information produced from this probe?
       if ( *ppCurKeyCnf ){
 	ClapAttack_PartialKeyInferenceMiter( *ppCurKeyCnf, &pInferPartialKeyMiter, KeyNameTmp[k] );
 
+	// Run SAT on teh partial key miter to determine if we have fully specified any key values that
+	// can help us progress the attack.
 	PartialKeySatStatus = ClapAttack_RunSat(pInferPartialKeyMiter);
 	Abc_NtkDelete( pInferPartialKeyMiter );
-	
+
+	// Handle any partial key information
 	if ( PartialKeySatStatus && (PartialKeySatStatus != -1) ) {		    
 	  if ( !ClapAttack_RunSat(*ppCurKeyCnf) ){
-	    
+
+	    // Update known keys in the network.
 	    Abc_NtkForEachPi( *ppCurKeyCnf, pKey, m ) {
 	      if ( !strcmp(Abc_ObjName(pKey), KeyNameTmp[k]) ) {
+
+		// Either remove the key or set it to constant 1.
 		KeyValue = (*ppCurKeyCnf)->pModel[m];
 		ClapAttack_UpdateKey(KeyNameTmp[k], KeyValue, pGlobalBsiKeys);
 		printf("We determined that key %s is %d\n", Abc_ObjName(pKey), KeyValue);
 		fRerunInfer = 1;
-		//exit(0);
-		// Either remove the key or set it to constant 1.
 		break;
 	      }
 	    }
+	    
 	    // Optimize out key from partial CNF
 	    ntkTmp = Abc_NtkToLogic( *ppCurKeyCnf );
 	    Abc_NtkDelete( *ppCurKeyCnf );
@@ -1663,19 +1185,18 @@ void ClapAttack_EvalMultinodeProbe ( struct SatMiterList *pSatMiter, Abc_Ntk_t *
 	      }
 	    }
 	    
-	    // Check if we optimized out all the PIs but one.
-	    // IF so, free the partial info
+	    // Check if we optimized out all the PIs but one.	    
 	    ntkTmp = Abc_NtkStrash( *ppCurKeyCnf, 0, 1, 0 );
 	    Abc_NtkDelete( *ppCurKeyCnf );
 	    *ppCurKeyCnf = ntkTmp;
 	    
+	    // IF so, free the partial info
 	    if ( (Abc_NtkPiNum(*ppCurKeyCnf) < 2) && fCurKeyCnfAlloc) {
-	      //ABC_FREE(pCurKeyCnf);
 	      Abc_NtkDelete( *ppCurKeyCnf );
 	      *ppCurKeyCnf = NULL;
 	      break;
 	    } 
-	    //printf("After\n");
+
 	  } else {
 	    printf("The key is somehow UNSAT... Exiting.\n\n");
 	    exit(0);
@@ -1691,6 +1212,7 @@ void ClapAttack_EvalMultinodeProbe ( struct SatMiterList *pSatMiter, Abc_Ntk_t *
     printf("%d, ", pGlobalBsiKeys->KeyValue[k]);
   printf("}\n\n");
 
+  // Cleanup memory allocations
   free(pGlobalBsiKeysTmp->KeyValue);
 
   for(k=0; k<pGlobalBsiKeys->NumKeys; k++)
@@ -1700,6 +1222,7 @@ void ClapAttack_EvalMultinodeProbe ( struct SatMiterList *pSatMiter, Abc_Ntk_t *
   
 }
 
+// Add a probe-able node to the end of the SAT Miter List data structure.
 void ClapAttack_UpdateSatMiterList( struct SatMiterList ** ppSatMiterList, Abc_Obj_t ** ppNode, Abc_Ntk_t * pMiter, int NumKeys, char **KeyNames, int MaxNodesConsidered, float IdentifiableKeys, int *pModel ) {
 
   int i;
@@ -1764,7 +1287,7 @@ void ClapAttack_UpdateSatMiterList( struct SatMiterList ** ppSatMiterList, Abc_O
   
 }
 
-
+// Free the SATMiterList data structure to avoid memory leaking.
 void ClapAttack_FreeSatMiterList( struct SatMiterList ** ppSatMiterList ) {
 
   int i;
@@ -1783,21 +1306,16 @@ void ClapAttack_FreeSatMiterList( struct SatMiterList ** ppSatMiterList ) {
     pSatMiterListCur = pSatMiterListCur->pNext;
   }
 
-
-  //printf("Debug Here1\n\n");
-	
+  // Starting from end of list, free iteratively towards the front
   while ( pSatMiterListCur ) {
 
     // Update data
-    //printf("Debug Here2\n");
     free(pSatMiterListCur->ppSatNode);
 
     // Clear miter ntk
-    //printf("Debug Here3\n");
     Abc_NtkDelete( pSatMiterListCur->pMiter );
 
     // Clear model if it exists
-    //printf("Debug Here4\n");
     free( pSatMiterListCur->pModel );
 
     // Free keyname list
@@ -1808,23 +1326,17 @@ void ClapAttack_FreeSatMiterList( struct SatMiterList ** ppSatMiterList ) {
     
     // Go to previous node and free
     if ( pSatMiterListCur->pPrev ) {
-      //printf("Debug Here5\n\n");
       pSatMiterListCur = pSatMiterListCur->pPrev;
       free(pSatMiterListCur->pNext);
     } else {
-      //printf("Debug Here6\n\n");
       free(pSatMiterListCur);
       *ppSatMiterList = NULL;
       break;
     }
-  }
-  
+  }  
 }
-//void ClapAttack_GlobalKeyCnfInfer ( struct BSI_KeyData_t * pGlobalBsiKeys ) {
-//
-//
-//}
 
+// Update partial key information that is stored globally (rather than within a single CLAP iteration).
 int ClapAttack_UpdateGlobalKeyCnf ( Abc_Ntk_t **ppCurKeyCnf, struct BSI_KeyData_t * pGlobalBsiKeys ) {
   
   // Handle Keystore partial CNF management
@@ -1854,15 +1366,12 @@ int ClapAttack_UpdateGlobalKeyCnf ( Abc_Ntk_t **ppCurKeyCnf, struct BSI_KeyData_
     // Reset the cur partial key pointer to NULL
     Abc_NtkDelete( *ppCurKeyCnf );
     *ppCurKeyCnf = NULL;
-    
-    // Debug print
-    //ClapAttack_WriteMiterVerilog(pGlobalBsiKeys->pKeyCnf, "complete_key_logic.v");
   }
 
   return 0;
 }
 
-
+// Isolate fan-in cone for a specific probe point (inclusive of probed node) for the network. 
 int ClapAttack_IsolateCone(Abc_Ntk_t * pNtk, Abc_Ntk_t ** ppNtkCone, Abc_Obj_t * pProbe) {
 
   // Run cone command... and return the fanout cone as a separate network
@@ -1875,11 +1384,10 @@ int ClapAttack_IsolateCone(Abc_Ntk_t * pNtk, Abc_Ntk_t ** ppNtkCone, Abc_Obj_t *
   
   extern Abc_Ntk_t * Abc_NtkMakeOnePo( Abc_Ntk_t * pNtk, int Output, int nRange );
 
-  //Abc_FrameReplaceCurrentNetwork( pAbc, pNtkRes );
-
+  // Create cone for probed node
   *ppNtkCone = Abc_NtkCreateCone( pNtk, pProbe, Abc_ObjName(pProbe), fUseAllCis );
-  //ClapAttack_WriteMiterVerilog(*ppNtkCone, "cone0.v");
-  
+
+  // Remove PO for the cone -- this is the output of the probed node
   pPo = Abc_NtkPo(*ppNtkCone, 0);
   pHeadNode1 = Abc_ObjChild0( pPo );
   Abc_NtkDeleteObj( pPo );
@@ -1888,7 +1396,7 @@ int ClapAttack_IsolateCone(Abc_Ntk_t * pNtk, Abc_Ntk_t ** ppNtkCone, Abc_Obj_t *
   // Re-sort network
   Abc_NtkOrderCisCos( *ppNtkCone );
 
-  
+  // Set the output of hte network to the input of the probe point (i.e. the probed node)
   Abc_ObjForEachFanin( pHeadNode1, pFanin, j ) {
     pNode = Abc_NtkCreatePo( *ppNtkCone ); 
     Abc_ObjAddFanin( pNode, pFanin );
@@ -1899,12 +1407,14 @@ int ClapAttack_IsolateCone(Abc_Ntk_t * pNtk, Abc_Ntk_t ** ppNtkCone, Abc_Obj_t *
   // Re-sort network
   Abc_NtkOrderCisCos( *ppNtkCone );
 
-  // Cut off the head when we're done with it.
+  // Cut off the head when we're done with it. This essentially removes the probed-node itself.
   // Unusued so unnecessary.
   Abc_NtkDeleteObj( pHeadNode1 );
 
   
-  /* Probe Resolution Increase */
+  /* Probe Resolution Increase -- Note this is hacked together.
+    // Hacked together resolution scaling. Email me for updated version if interested. (mjzeec@rit.edu)
+
   if (Abc_ObjFanoutNum(pProbe)){
   
   pProbe2 = Abc_ObjFanout0( pProbe );
@@ -1943,9 +1453,6 @@ int ClapAttack_IsolateCone(Abc_Ntk_t * pNtk, Abc_Ntk_t ** ppNtkCone, Abc_Obj_t *
     
     // Re-sort network
     Abc_NtkOrderCisCos( pNtkConeTmp );
-    
-
-
   
     pNtkTmp = Abc_NtkStrash( *ppNtkCone, 0, 1, 0 );
     Abc_NtkDelete( *ppNtkCone );
@@ -1955,8 +1462,6 @@ int ClapAttack_IsolateCone(Abc_Ntk_t * pNtk, Abc_Ntk_t ** ppNtkCone, Abc_Obj_t *
     Abc_NtkDelete( pNtkConeTmp );
     pNtkConeTmp = pNtkTmp;
     
-  
-
     if ( !Abc_NtkAppendSilent( *ppNtkCone, pNtkConeTmp, 1 ) )
       {
 	Abc_Print( -1, "Appending the networks failed 1.\n" );
@@ -1969,18 +1474,10 @@ int ClapAttack_IsolateCone(Abc_Ntk_t * pNtk, Abc_Ntk_t ** ppNtkCone, Abc_Obj_t *
     pNtkTmp = Abc_NtkToLogic( *ppNtkCone );
     Abc_NtkDelete( *ppNtkCone );
     *ppNtkCone = pNtkTmp;  
-    
-
-
-
-    
-
-
 
   if (Abc_ObjFanoutNum(pProbe2)){
   
   pProbe3 = Abc_ObjFanout0( pProbe2 );
-
   
   if ( !Abc_ObjIsPo(pProbe3) ){
     // Figure out which fanin to skip
@@ -2020,9 +1517,6 @@ int ClapAttack_IsolateCone(Abc_Ntk_t * pNtk, Abc_Ntk_t ** ppNtkCone, Abc_Obj_t *
     // Re-sort network
     Abc_NtkOrderCisCos( pNtkConeTmp );
     
-
-
-  
     pNtkTmp = Abc_NtkStrash( *ppNtkCone, 0, 1, 0 );
     Abc_NtkDelete( *ppNtkCone );
     *ppNtkCone = pNtkTmp;
@@ -2030,8 +1524,6 @@ int ClapAttack_IsolateCone(Abc_Ntk_t * pNtk, Abc_Ntk_t ** ppNtkCone, Abc_Obj_t *
     pNtkTmp = Abc_NtkStrash( pNtkConeTmp, 0, 1, 0 );
     Abc_NtkDelete( pNtkConeTmp );
     pNtkConeTmp = pNtkTmp;
-    
-  
 
     if ( !Abc_NtkAppendSilent( *ppNtkCone, pNtkConeTmp, 1 ) )
       {
@@ -2046,105 +1538,81 @@ int ClapAttack_IsolateCone(Abc_Ntk_t * pNtk, Abc_Ntk_t ** ppNtkCone, Abc_Obj_t *
     Abc_NtkDelete( *ppNtkCone );
     *ppNtkCone = pNtkTmp;  
 
-
-
-
-
-
-
+    // Hacked together resolution scaling. Email me for updated version if interested. (mjzeec@rit.edu)
     /*  
-  if (Abc_ObjFanoutNum(pProbe3)){
+	if (Abc_ObjFanoutNum(pProbe3)){
   
-  pProbe4 = Abc_ObjFanout0( pProbe3 );
+	pProbe4 = Abc_ObjFanout0( pProbe3 );
 
-  
-  if ( !Abc_ObjIsPo(pProbe4) ){
-    // Figure out which fanin to skip
-    ignoreFanin=-1;
-    ignoreFanin2=-1;
-    ignoreFanin3=-1;
-    Abc_ObjForEachFanin( pProbe4, pFanin, l ) {
-      if ( pFanin == pProbe2 ) {
+	if ( !Abc_ObjIsPo(pProbe4) ){
+	// Figure out which fanin to skip
+	ignoreFanin=-1;
+	ignoreFanin2=-1;
+	ignoreFanin3=-1;
+	Abc_ObjForEachFanin( pProbe4, pFanin, l ) {
+	if ( pFanin == pProbe2 ) {
 	ignoreFanin = l;
-      }
-      if ( pFanin == pProbe ) {
+	}
+	if ( pFanin == pProbe ) {
 	ignoreFanin2 = l;
-      }
-      if ( pFanin == pProbe3 ) {
+	}
+	if ( pFanin == pProbe3 ) {
 	ignoreFanin3 = l;
-      }
-    }
-    
-    // Comment me
-    pNtkConeTmp = Abc_NtkCreateCone( pNtk, pProbe4, Abc_ObjName(pProbe4), fUseAllCis );
-    
-    // comment me
-    // remove the POs and their names
-    pPo = Abc_NtkPo(pNtkConeTmp, 0);
-    pHeadNode4 = Abc_ObjChild0( pPo );
-    Abc_NtkDeleteObj( pPo );
-    assert( Abc_NtkPoNum(pNtkConeTmp) == 0 );
-    
-    // comment me
-    Abc_ObjForEachFanin( pHeadNode4, pFanin, l ) {
-      if ( l != ignoreFanin && l != ignoreFanin2 && l != ignoreFanin3) {
+	}
+	}
+	
+	// Comment me
+	pNtkConeTmp = Abc_NtkCreateCone( pNtk, pProbe4, Abc_ObjName(pProbe4), fUseAllCis );
+	
+	// comment me
+	// remove the POs and their names
+	pPo = Abc_NtkPo(pNtkConeTmp, 0);
+	pHeadNode4 = Abc_ObjChild0( pPo );
+	Abc_NtkDeleteObj( pPo );
+	assert( Abc_NtkPoNum(pNtkConeTmp) == 0 );
+	
+	// comment me
+	Abc_ObjForEachFanin( pHeadNode4, pFanin, l ) {
+	if ( l != ignoreFanin && l != ignoreFanin2 && l != ignoreFanin3) {
 	pNode = Abc_NtkCreatePo( pNtkConeTmp ); 
 	Abc_ObjAddFanin( pNode, pFanin );
 	sprintf(PoTmpName, "po%d", j+i+k+l);
 	Abc_ObjAssignName( pNode, PoTmpName, NULL );
-      }
-    }
+	}
+	}
+	
+	Abc_NtkDeleteObj( pHeadNode4 );
+	
+	// Re-sort network
+	Abc_NtkOrderCisCos( pNtkConeTmp );
+      
+	pNtkTmp = Abc_NtkStrash( *ppNtkCone, 0, 1, 0 );
+	Abc_NtkDelete( *ppNtkCone );
+	*ppNtkCone = pNtkTmp;
+	
+	pNtkTmp = Abc_NtkStrash( pNtkConeTmp, 0, 1, 0 );
+	Abc_NtkDelete( pNtkConeTmp );
+	pNtkConeTmp = pNtkTmp;
     
-    Abc_NtkDeleteObj( pHeadNode4 );
-    
-    // Re-sort network
-    Abc_NtkOrderCisCos( pNtkConeTmp );
-    
-
-
-  
-    pNtkTmp = Abc_NtkStrash( *ppNtkCone, 0, 1, 0 );
-    Abc_NtkDelete( *ppNtkCone );
-    *ppNtkCone = pNtkTmp;
-    
-    pNtkTmp = Abc_NtkStrash( pNtkConeTmp, 0, 1, 0 );
-    Abc_NtkDelete( pNtkConeTmp );
-    pNtkConeTmp = pNtkTmp;
-    
-  
-
-    if ( !Abc_NtkAppendSilent( *ppNtkCone, pNtkConeTmp, 1 ) )
-      {
+	if ( !Abc_NtkAppendSilent( *ppNtkCone, pNtkConeTmp, 1 ) )
+	{
 	Abc_Print( -1, "Appending the networks failed 1.\n" );
 	exit(0);
 	return 1;
-      }
-    Abc_NtkDelete(pNtkConeTmp);
-    //ClapAttack_WriteMiterVerilog(*ppNtkCone, "cone1.v");
+	}
+	Abc_NtkDelete(pNtkConeTmp);
+	//ClapAttack_WriteMiterVerilog(*ppNtkCone, "cone1.v");
+	
+	pNtkTmp = Abc_NtkToLogic( *ppNtkCone );
+	Abc_NtkDelete( *ppNtkCone );
+	*ppNtkCone = pNtkTmp;  
+	
+	}}
+	}}
+	}}
 
-    pNtkTmp = Abc_NtkToLogic( *ppNtkCone );
-    Abc_NtkDelete( *ppNtkCone );
-    *ppNtkCone = pNtkTmp;  
-    
-  }}
-    */
+   End bigger resolution stuff... */
 
-  }}
-
-  }}
-
-
-
-
-
-
-
-
-  
-  /* End bigger resolution stuff... */
-
-
-  
   // make sure that everything is okay
   if ( !Abc_NtkCheck( *ppNtkCone ) )
     {
@@ -2152,10 +1620,10 @@ int ClapAttack_IsolateCone(Abc_Ntk_t * pNtk, Abc_Ntk_t ** ppNtkCone, Abc_Obj_t *
       return 1;
     }
 
-  
   return 0;
 }
 
+// Clean the logic cone isolated as an individual network by removing unused/unneeded logic.
 void ClapAttack_CleanCone( Abc_Ntk_t ** ppNtk ) {
 
   extern Abc_Ntk_t * Abc_NtkDarCleanupAig( Abc_Ntk_t * pNtk, int fCleanupPis, int fCleanupPos, int fVerbose );
@@ -2168,7 +1636,8 @@ void ClapAttack_CleanCone( Abc_Ntk_t ** ppNtk ) {
     *ppNtk = Abc_NtkDarCleanupAig( *ppNtk, 1, 1, 0 );
 }
 
-
+// Initialize the partial key logic network that is used to store partial key information
+// produced by EOFM probing.
 void ClapAttack_InitKeyCnf( Abc_Ntk_t ** ppNtk, int NumKeys, int * WrongKeyValue, char ** KeyNames ) {
 
   int i;
@@ -2207,20 +1676,21 @@ void ClapAttack_InitKeyCnf( Abc_Ntk_t ** ppNtk, int NumKeys, int * WrongKeyValue
   Abc_ObjAddFanin( pPo, pPi[NumKeys-1] );
 
 
+  // Strash the network
   ntkTmp = Abc_NtkStrash( *ppNtk, 0, 1, 0 );
   Abc_NtkDelete( *ppNtk );
   *ppNtk = ntkTmp;
 
+  // Make sure we did not damage the network while modifying it.
   if ( !Abc_NtkCheck( *ppNtk ) )
     fprintf( stdout, "Abc_NtkCreateFromNode(): Network check has failed.\n" );
   
-  //ClapAttack_WriteMiterVerilog(*ppNtk, "partial_key_logic.v");
-
   // Free the malloced array
   free(pPi);
       
 }
 
+// Rename a PO in a network by index.
 void ClapAttack_RenamePo( Abc_Ntk_t * pNtk, int PoIdx, char *NewPoName) {
 
   Abc_Obj_t * pNode, *pPo;
@@ -2239,6 +1709,7 @@ void ClapAttack_RenamePo( Abc_Ntk_t * pNtk, int PoIdx, char *NewPoName) {
   
 }
 
+// Update the partial logic for the correct key values based on the results of an EOFM probe.
 void ClapAttack_UpdateKeyCnf( Abc_Ntk_t ** ppNtk, int NumKeys, int * WrongKeyValue, char ** KeyNames ) {
 
   int i, j, fPiExists;
@@ -2269,12 +1740,13 @@ void ClapAttack_UpdateKeyCnf( Abc_Ntk_t ** ppNtk, int NumKeys, int * WrongKeyVal
 
   // Calculate logic based off wrong key value.
   for ( i=0; i<NumKeys; i++ ) {
+
     // Invert the key if necessary
     if ( !WrongKeyValue[i] ) {
       pPi[i] = Abc_ObjNot(pPi[i]);
     }
 
-      
+    // And all the outputs together (i.e. for the key to be correct ALL of these clauses must be true)  
     if ( i )
       pPi[i] = Abc_AigAnd( (Abc_Aig_t *)(*ppNtk)->pManFunc, pPi[i-1],  pPi[i] );
   }
@@ -2295,6 +1767,7 @@ void ClapAttack_UpdateKeyCnf( Abc_Ntk_t ** ppNtk, int NumKeys, int * WrongKeyVal
   Abc_ObjAssignName( pNode, "not_key_partial", NULL );
   Abc_NtkOrderCisCos( *ppNtk );
 
+  // Fraig the network
   Fraig_ParamsSetDefault( &Params );
   *ppNtk = Abc_NtkFraig( ntkTmp = *ppNtk, &Params, 0, 0 );
   Abc_NtkDelete( ntkTmp );
@@ -2303,90 +1776,18 @@ void ClapAttack_UpdateKeyCnf( Abc_Ntk_t ** ppNtk, int NumKeys, int * WrongKeyVal
   ntkTmp = Abc_NtkStrash( *ppNtk, 0, 1, 0 );
   Abc_NtkDelete( *ppNtk );
   *ppNtk = ntkTmp;
-  
+
+  // Make sure we did not damage the network
   if ( !Abc_NtkCheck( *ppNtk ) )
     fprintf( stdout, "Abc_NtkCreateFromNode(): Network check has failed.\n" );
   
-  //ClapAttack_WriteMiterVerilog(*ppNtk, "updated_key_logic.v");
-  //exit(0);
   // Free the malloced array
   free(pPi);
       
 }
 
-
-int ClapAttack_BuildPartialKeyMiter( Abc_Ntk_t ** ppNtk ) {
-
-  int i, NumDelNode;
-  Abc_Ntk_t *ntkTmp;
-  Abc_Obj_t *pNode;
-  Abc_Obj_t **DelNode = (Abc_Obj_t **)malloc( sizeof(Abc_Obj_t *) * (Abc_NtkPoNum(*ppNtk) + Abc_NtkPiNum(*ppNtk)) );
-
-  // Delete all PIs that arent keys
-  NumDelNode = 0;
-  Abc_NtkForEachPi( *ppNtk, pNode, i ) {
-
-    // Is it a key?
-    if( !strstr(Abc_ObjName(pNode), "key") ) {
-      DelNode[NumDelNode] = pNode;
-      NumDelNode++;
-    }
-  }
-
-  for (i=0; i<NumDelNode; i++) {
-    Abc_NtkDeleteObj( DelNode[i] );
-  }
-
-  // Delete all Pos that arent the miter
-  NumDelNode = 0;
-  Abc_NtkForEachPo( *ppNtk, pNode, i ) {
-
-    if( !strstr(Abc_ObjName(pNode), "not_key") ) {
-      DelNode[NumDelNode] = pNode;
-      NumDelNode++;
-    }
-  }
-
-  for (i=0; i<NumDelNode; i++) {
-    Abc_NtkDeleteObj( DelNode[i] );
-  }
-
-  // strash things again and check the final miter.
-  ntkTmp = Abc_NtkStrash( *ppNtk, 0, 1, 0 ); 
-  Abc_NtkDelete( *ppNtk );
-  *ppNtk = ntkTmp;
-
-  
-  // Make the final miter
-  extern int Abc_NtkCombinePos( Abc_Ntk_t * pNtk, int fAnd, int fXor );
-
-  //ClapAttack_WriteMiterVerilog(*ppNtk, "not_key_premiter.v");
-  if ( !Abc_NtkCombinePos( *ppNtk, 1, 0 ) )
-    {
-      Abc_Print( -1, "ANDing the POs has failed.\n" );
-      return 1;
-    }
-
-  
-  ClapAttack_RenamePo( *ppNtk, 0, "not_key_miter" );
-  
-  //ClapAttack_WriteMiterVerilog(pNtk, "test3.v");
-  // make sure that everything is okay
-  //printf("Pre-Check\n\n");
-  if ( !Abc_NtkCheck( *ppNtk ) )
-    {
-      printf( "Abc_NtkOrPos: The network check has failed.\n" );
-      return 1;
-    }
-  //printf("Post-Check\n\n");
-  //ClapAttack_WriteMiterVerilog(*ppNtk, "not_key_miter.v");
-
-  free(DelNode);
-  
-  return 0;
-}
-
-
+// Make the logic formula for the CLAP attack indicating whether probing a given node produces key leakage.
+// Essentially 3 miter circuits are generated for the circuit to assess the leakage produced by probing the node.
 int ClapAttack_MakeMiterHeuristic(Abc_Ntk_t * pNtkCone, Abc_Ntk_t * pNtkPartialKey, Abc_Ntk_t ** ppNtkMiter) {
   Abc_Ntk_t *pNtkTmpMiter1, *pNtkMiter2, *pNtkTmpMiter2, *pKeyMiter, *pNtkPartialKeyMiter, *pNtkPartialKeyMiterTmp, *ntkTmp;
   Abc_Obj_t *pNode;
@@ -2398,7 +1799,6 @@ int ClapAttack_MakeMiterHeuristic(Abc_Ntk_t * pNtkCone, Abc_Ntk_t * pNtkPartialK
   int nPartSize;
   int NumKeys;
   int i;
-  //  int nDigits;
   
   // Named function params for clarity
   fComb  = 0;
@@ -2437,38 +1837,27 @@ int ClapAttack_MakeMiterHeuristic(Abc_Ntk_t * pNtkCone, Abc_Ntk_t * pNtkPartialK
   pNtkPartialKeyMiter = NULL;
   if ( pNtkPartialKey ) {
 
-    //ClapAttack_WriteMiterVerilog(pNtkPartialKey, "ntk3.v");
+    // Duplicate partial key logic to generate miter
     pNtkPartialKeyMiter = Abc_NtkDup(pNtkPartialKey);
 
+    // Cleanup duplicated circuit
     ntkTmp = Abc_NtkStrash( pNtkPartialKeyMiter, 0, 1, 0 );
     Abc_NtkDelete( pNtkPartialKeyMiter );
     pNtkPartialKeyMiter = ntkTmp;
 
-    //if ( !Abc_NtkAppendSilent( pNtkPartialKeyMiter, pNtkPartialKey, 1 ) )
-    //  {
-    //	Abc_Print( -1, "Appending the networks failed 1.\n" );
-    //	exit(0);
-    //	return 1;
-    // }
-
+    // Duplicate the partial key logic again in order to create the miter
     pNtkPartialKeyMiterTmp = Abc_NtkDup(pNtkPartialKeyMiter);
-    //pNtkPartialKeyMiter = Abc_NtkStrash( pNtkPartialKeyMiter, 0, 1, 0 );
     ntkTmp = Abc_NtkStrash( pNtkPartialKeyMiterTmp, 0, 1, 0 );
     Abc_NtkDelete( pNtkPartialKeyMiterTmp );
     pNtkPartialKeyMiterTmp = ntkTmp;
 
-    // Temporary hack so padding 0s will always match...
-    //nDigits = Abc_Base10Log( Abc_NtkPiNum(pNtkCone) );
+    // rename the key miter logic cones to standard and unique values for each copy
     ClapAttack_RenameLogic( pNtkPartialKeyMiter, "_1", "_1", "_cone1", 1 );
     ClapAttack_RenameLogic( pNtkPartialKeyMiterTmp, "_2", "_2", "_cone2", 1 );
 
-    //ClapAttack_WriteMiterVerilog(pNtkPartialKeyMiter, "ntk6.v");
-    
-    //printf("Before append\n");
+    // Append copies of network to make key miter
     if ( !Abc_NtkAppendSilent( pNtkPartialKeyMiter, pNtkPartialKeyMiterTmp, 1 ) )
       {
-	//ClapAttack_WriteMiterVerilog(pNtkPartialKeyMiter, "ntk1.v");
-	//ClapAttack_WriteMiterVerilog(pNtkPartialKeyMiterTmp, "ntk2.v");
 	Abc_NtkDelete( pNtkPartialKeyMiterTmp );
 	Abc_Print( -1, "Appending the networks failed 2.\n" );
 	exit(0);
@@ -2476,65 +1865,37 @@ int ClapAttack_MakeMiterHeuristic(Abc_Ntk_t * pNtkCone, Abc_Ntk_t * pNtkPartialK
       }
     Abc_NtkDelete( pNtkPartialKeyMiterTmp );
 
-    //ClapAttack_WriteMiterVerilog(pNtkPartialKeyMiter, "ntk7.v");
-    
-    // ToDo:
-    // Delete all Pis that arent keys
-    // Delete all POs that arent non_key
-    // Add new anded PO of not_key
+    // Strash the circuit to clean it up and remove any dangling logic
     ntkTmp = Abc_NtkStrash( pNtkPartialKeyMiter, 0, 1, 0 );
     Abc_NtkDelete( pNtkPartialKeyMiter );
     pNtkPartialKeyMiter = ntkTmp;
-    //if ( ClapAttack_BuildPartialKeyMiter( &pNtkPartialKeyMiter ) ) {
-    //  Abc_Print( -1, "Building partial key miter failed.\n");
-    //  exit(0);
-    // }
-    //ClapAttack_WriteMiterVerilog(pNtkPartialKeyMiter, "ntk4.v");
-
 
     // Make the final miter
     extern int Abc_NtkCombinePos( Abc_Ntk_t * pNtk, int fAnd, int fXor );
 
-    //ClapAttack_WriteMiterVerilog(*ppNtk, "not_key_premiter.v");
+    // Miter the keymiter network output
     if ( !Abc_NtkCombinePos( pNtkPartialKeyMiter, 1, 0 ) )
       {
 	Abc_Print( -1, "ANDing the POs has failed.\n" );
 	return 1;
       }
 
-  
+    // Rename primary output of the key miter to standard value for later
     ClapAttack_RenamePo( pNtkPartialKeyMiter, 0, "not_key_miter" );
   
-    //ClapAttack_WriteMiterVerilog(pNtk, "test3.v");
     // make sure that everything is okay
-    //printf("Pre-Check\n\n");
     if ( !Abc_NtkCheck( pNtkPartialKeyMiter ) )
       {
 	printf( "Abc_NtkOrPos: The network check has failed.\n" );
 	return 1;
       }
-
-    
-    //ClapAttack_WriteMiterVerilog(pNtkPartialKeyMiter, "not_key_miter.v");
   }
 
-
-  
-
-
-  
-  //ClapAttack_WriteMiterVerilog(*ppNtkMiter, "pre_ntk.v");
+  // Rename I/O in miter circuits to uniform/standardized values
   ClapAttack_RenameLogic( *ppNtkMiter, "_1", "_1", "_cone1", 1 );
-  //ClapAttack_WriteMiterVerilog(*ppNtkMiter, "ntk1.v");
   ClapAttack_RenameLogic( pNtkTmpMiter1, "_2", "_1", "_cone2", 1 );
-  //ClapAttack_WriteMiterVerilog(pNtkTmpMiter1, "ntk2.v");
-
-
-
   ClapAttack_RenameLogic( pNtkMiter2, "_1", "_2", "_cone3", 1 );
-  //ClapAttack_WriteMiterVerilog(pNtkMiter2, "ntk3.v");
   ClapAttack_RenameLogic( pNtkTmpMiter2, "_2", "_2", "_cone4", 1 );
-  //ClapAttack_WriteMiterVerilog(pNtkTmpMiter2, "ntk4.v");
 
   // Append the two networks we prepped for miter 1
   if ( !Abc_NtkAppendSilent( *ppNtkMiter, pNtkTmpMiter1, 1 ) )
@@ -2545,6 +1906,7 @@ int ClapAttack_MakeMiterHeuristic(Abc_Ntk_t * pNtkCone, Abc_Ntk_t * pNtkPartialK
       return 1;
     }
 
+  // Cleanup temp miter
   Abc_NtkDelete( pNtkTmpMiter1 );
 
   // Append the two networks we prepped for miter 2
@@ -2565,8 +1927,6 @@ int ClapAttack_MakeMiterHeuristic(Abc_Ntk_t * pNtkCone, Abc_Ntk_t * pNtkPartialK
       return 1;
     }
 
-  //ClapAttack_WriteMiterVerilog(*ppNtkMiter, "miter_firstcone.v");
-  
   // Generate the second miter cone
   if ( !ClapAttack_MiterPos( pNtkMiter2, 0, 1 ) )
     {
@@ -2586,8 +1946,8 @@ int ClapAttack_MakeMiterHeuristic(Abc_Ntk_t * pNtkCone, Abc_Ntk_t * pNtkPartialK
       return 1;
     }
 
+  // Cleanup temp logic
   Abc_NtkDelete( pNtkMiter2 );
-
 
   // check to see if there are any keys left in the optimized
   // circuit. If not, we don't need to bother checking anything
@@ -2630,9 +1990,8 @@ int ClapAttack_MakeMiterHeuristic(Abc_Ntk_t * pNtkCone, Abc_Ntk_t * pNtkPartialK
       return 1;
     }
 
+  // Cleanup temporary network
   Abc_NtkDelete( pKeyMiter );
-
-  //ClapAttack_WriteMiterVerilog(*ppNtkMiter, "miter_premerge.v");
 
   // Merge in partial key logic miter
   if (pNtkPartialKeyMiter) {
@@ -2643,11 +2002,9 @@ int ClapAttack_MakeMiterHeuristic(Abc_Ntk_t * pNtkCone, Abc_Ntk_t * pNtkPartialK
 	exit(0);
 	return 1;
       }
-    //printf("Partial Key append Done\n\n");
-    Abc_NtkDelete( pNtkPartialKeyMiter );
-    //ABC_FREE(pNtkPartialKeyMiter);
-    //ABC_FREE(pNtkPartialKeyMiterTmp);
 
+    // Cleanup temporary network
+    Abc_NtkDelete( pNtkPartialKeyMiter );
   }
 
   // Generate the final miter cone
@@ -2660,285 +2017,16 @@ int ClapAttack_MakeMiterHeuristic(Abc_Ntk_t * pNtkCone, Abc_Ntk_t * pNtkPartialK
       return 1;
     }
 
-  //ClapAttack_WriteMiterVerilog(*ppNtkMiter, "miter_prefraig.v");
-
-
+  // Cleanup program state and memory
   Fraig_ParamsSetDefault( &Params );
   *ppNtkMiter = Abc_NtkFraig( ntkTmp = *ppNtkMiter, &Params, 0, 0 );
   Abc_NtkDelete( ntkTmp );
 
-
-  //ClapAttack_WriteMiterVerilog(*ppNtkMiter, "final_miter.v");
-  
-  // Free all the networks
-  //Abc_NtkDelete( pKeyMiter );
-  //Abc_NtkDelete( pNtkTmpMiter1 );
-  //Abc_NtkDelete( pNtkTmpMiter2 );
-  //Abc_NtkDelete( pNtkMiter2 );
-  //ABC_FREE(pKeyMiter);
-  //ABC_FREE(pNtkTmpMiter2);
-  //ABC_FREE(pNtkTmpMiter1);
-  //ABC_FREE(pNtkMiter2);
-
-  
-  return 0;
-
-}
-
-
-
-int ClapAttack_MakeMiter(Abc_Ntk_t * pNtkCone, Abc_Ntk_t * pNtkPartialKey, Abc_Ntk_t ** ppNtkMiter) {
-  Abc_Ntk_t *pNtkTmpMiter1, *pNtkMiter2, *pNtkTmpMiter2, *pKeyMiter, *pNtkPartialKeyMiter, *pNtkPartialKeyMiterTmp, *ntkTmp;
-  Abc_Obj_t *pNode;
-  Fraig_Params_t Params;
-  int fCheck;
-  int fComb;
-  int fImplic;
-  int fMulti;
-  int nPartSize;
-  int NumKeys;
-  int i;
-  int nDigits;
-  
-  // Named function params for clarity
-  fComb  = 0;
-  fCheck = 1;
-  fImplic = 0;
-  fMulti = 0;
-  nPartSize = 0;
-  NumKeys = 0;
-
-
-
-  // Miter circuit 1 init
-  *ppNtkMiter = Abc_NtkDup(pNtkCone);
-  pNtkTmpMiter1 = Abc_NtkDup(*ppNtkMiter);
-
-  // Miter circuit 2 init
-  pNtkMiter2 = Abc_NtkDup(pNtkCone);
-  pNtkTmpMiter2 = Abc_NtkDup(pNtkCone);
-
-
-  // Strash the networks
-  ntkTmp = Abc_NtkStrash( *ppNtkMiter, 0, 1, 0 );
-  Abc_NtkDelete( *ppNtkMiter );
-  *ppNtkMiter = ntkTmp;
-
-  ntkTmp = Abc_NtkStrash( pNtkTmpMiter1, 0, 1, 0 );
-  Abc_NtkDelete( pNtkTmpMiter1 );
-  pNtkTmpMiter1 = ntkTmp;
-
-  ntkTmp = Abc_NtkStrash( pNtkMiter2, 0, 1, 0 );
-  Abc_NtkDelete( pNtkMiter2 );
-  pNtkMiter2 = ntkTmp; 
-
-  ntkTmp = Abc_NtkStrash( pNtkTmpMiter2, 0, 1, 0 );
-  Abc_NtkDelete( pNtkTmpMiter2 );
-  pNtkTmpMiter2 = ntkTmp;
-
-
-  // Build partial key logic miter.
-  pNtkPartialKeyMiter = NULL;
-  if ( pNtkPartialKey ) {
-
-    pNtkPartialKeyMiter = Abc_NtkDup(pNtkCone);
-
-    ntkTmp = Abc_NtkStrash( pNtkPartialKeyMiter, 0, 1, 0 );
-    Abc_NtkDelete( pNtkPartialKeyMiter );
-    pNtkPartialKeyMiter = ntkTmp;
-
-    if ( !Abc_NtkAppendSilent( pNtkPartialKeyMiter, pNtkPartialKey, 1 ) )
-      {
-	Abc_Print( -1, "Appending the networks failed 1.\n" );
-	exit(0);
-	return 1;
-      }
-
-    pNtkPartialKeyMiterTmp = Abc_NtkDup(pNtkPartialKeyMiter);
-    //pNtkPartialKeyMiter = Abc_NtkStrash( pNtkPartialKeyMiter, 0, 1, 0 );
-    ntkTmp = Abc_NtkStrash( pNtkPartialKeyMiterTmp, 0, 1, 0 );
-    Abc_NtkDelete( pNtkPartialKeyMiterTmp );
-    pNtkPartialKeyMiterTmp = ntkTmp;
-
-    // Temporary hack so padding 0s will always match...
-    nDigits = Abc_Base10Log( Abc_NtkPiNum(pNtkCone) );
-    ClapAttack_RenameInput( pNtkPartialKeyMiter, "_1", "_1", "_1", nDigits );
-    ClapAttack_RenameInput( pNtkPartialKeyMiterTmp, "_2", "_2", "_2", nDigits );
-
-    //printf("Before append\n");
-    if ( !Abc_NtkAppendSilent( pNtkPartialKeyMiter, pNtkPartialKeyMiterTmp, 1 ) )
-      {
-	Abc_NtkDelete( pNtkPartialKeyMiterTmp );
-	Abc_Print( -1, "Appending the networks failed 2.\n" );
-	return 1;
-      }
-    Abc_NtkDelete( pNtkPartialKeyMiterTmp );
-    
-    // ToDo:
-    // Delete all Pis that arent keys
-    // Delete all POs that arent non_key
-    // Add new anded PO of not_key
-    ntkTmp = Abc_NtkStrash( pNtkPartialKeyMiter, 0, 1, 0 );
-    Abc_NtkDelete( pNtkPartialKeyMiter );
-    pNtkPartialKeyMiter = ntkTmp;
-    if ( ClapAttack_BuildPartialKeyMiter( &pNtkPartialKeyMiter ) )
-      Abc_Print( -1, "Building partial key miter failed.\n");
-
-
-    //ClapAttack_WriteMiterVerilog(pNtkPartialKeyMiter, "not_key_miter.v");
-  }
-
-
-  
-
-
-  
-  //ClapAttack_WriteMiterVerilog(*ppNtkMiter, "pre_ntk_noheur.v");
-  
-  ClapAttack_RenameLogic( *ppNtkMiter, "_1", "_1", "_cone1", 0 );
-  //ClapAttack_WriteMiterVerilog(*ppNtkMiter, "ntk1_noheur.v");
-  ClapAttack_RenameLogic( pNtkTmpMiter1, "_2", "_1", "_cone2", 0 );
-  //ClapAttack_WriteMiterVerilog(pNtkTmpMiter1, "ntk2.v");
-
-
-
-  ClapAttack_RenameLogic( pNtkMiter2, "_1", "_2", "_cone3", 0 );
-  //ClapAttack_WriteMiterVerilog(pNtkMiter2, "ntk3.v");
-  ClapAttack_RenameLogic( pNtkTmpMiter2, "_2", "_2", "_cone4", 0 );
-  //ClapAttack_WriteMiterVerilog(pNtkTmpMiter2, "ntk4.v");
-
-  // Append the two networks we prepped for miter 1
-  if ( !Abc_NtkAppendSilent( *ppNtkMiter, pNtkTmpMiter1, 1 ) )
-    {
-      Abc_NtkDelete( pNtkTmpMiter1 );
-      Abc_Print( -1, "Appending the networks failed 3.\n" );
-      return 1;
-    }
-
-  Abc_NtkDelete( pNtkTmpMiter1 );
-
-  // Append the two networks we prepped for miter 2
-  if ( !Abc_NtkAppendSilent( pNtkMiter2, pNtkTmpMiter2, 1 ) )
-    {
-      Abc_NtkDelete( pNtkTmpMiter2 );
-      Abc_Print( -1, "Appending the networks failed 4.\n" );
-      return 1;
-    }
-  Abc_NtkDelete( pNtkTmpMiter2 );
-
-  // Generate the first miter cone
-  if ( !ClapAttack_MiterPos( *ppNtkMiter, 1, 0 ) )
-    {
-      Abc_Print( -1, "XOR/ORing the POs has failed.\n" );
-      return 1;
-    }
-
-  //ClapAttack_WriteMiterVerilog(*ppNtkMiter, "miter_firstcone_noheur.v");
-  
-  // Generate the second miter cone
-  if ( !ClapAttack_MiterPos( pNtkMiter2, 0, 1 ) )
-    {
-      Abc_Print( -1, "XNOR/ANDing the POs has failed.\n" );
-      return 1;
-    }
-  
-  // Merge Miters
-  ClapAttack_RenameOutput( *ppNtkMiter, "_1", 0 );
-  ClapAttack_RenameOutput( pNtkMiter2, "_2", 0 );
-  if ( !Abc_NtkAppendSilent( *ppNtkMiter, pNtkMiter2, 1 ) )
-    {
-      Abc_NtkDelete( pNtkMiter2 );
-      Abc_Print( -1, "Appending the networks failed 5.\n" );
-      return 1;
-    }
-
-  Abc_NtkDelete( pNtkMiter2 );
-
-
-  // check to see if there are any keys left in the optimized
-  // circuit. If not, we don't need to bother checking anything
-  Abc_NtkForEachPi( *ppNtkMiter, pNode, i ) {
-
-    // Is it a key?
-    if( strstr(Abc_ObjName(pNode), "key") )
-      NumKeys++;
-  }
-
-  // No keys... don't bother continuing
-  if (!NumKeys) {
-    if ( pNtkPartialKey ) {
-      Abc_NtkDelete( pNtkPartialKeyMiter );
-    }
-    //printf("We failed out because there are no keys for some reason....\n\n\n\n");
-    return 1;
-  }
-      
-  // Finally, we must make the key miter --
-  // We will operate off of the final miter and
-  // add a circuit XORing each key pair.
-  // If we remove other POs, the optimization
-  // engine will dump the remainder of the circuit.
-  // It's a hack.... for now....
-  pKeyMiter = Abc_NtkDup(*ppNtkMiter);
-  if ( !ClapAttack_MiterKeys( pKeyMiter ) )
-    {
-      Abc_Print( -1, "XORing the keys has failed.\n" );
-      return 1;
-    }
-
-  // Merge in key miter
-  if ( !Abc_NtkAppendSilent( *ppNtkMiter, pKeyMiter, 1 ) )
-    {
-      Abc_NtkDelete( pKeyMiter );
-      Abc_Print( -1, "Appending the networks failed 6.\n" );
-      return 1;
-    }
-
-  Abc_NtkDelete( pKeyMiter );
-
-  // Merge in partial key logic miter
-  if (pNtkPartialKeyMiter) {
-    if ( !Abc_NtkAppendSilent( *ppNtkMiter, pNtkPartialKeyMiter, 1 ) )
-      {
-	Abc_NtkDelete( pNtkPartialKeyMiter );
-	Abc_Print( -1, "Appending the networks failed 7.\n" );
-	return 1;
-      }
-    printf("Partial Key append Done\n\n");
-    Abc_NtkDelete( pNtkPartialKeyMiter );
-    //ABC_FREE(pNtkPartialKeyMiter);
-    //ABC_FREE(pNtkPartialKeyMiterTmp);
-
-  }
-
-  // Generate the final miter cone
-  extern int Abc_NtkCombinePos( Abc_Ntk_t * pNtk, int fAnd, int fXor );
-
-  if ( !Abc_NtkCombinePos( *ppNtkMiter, 1, 0 ) )//!ClapAttack_MiterPos( *ppNtkMiter, 0, 0, 1 ) )
-    {
-      Abc_Print( -1, "ANDing the POs has failed.\n" );
-      return 1;
-    }
-
-
-  Fraig_ParamsSetDefault( &Params );
-  *ppNtkMiter = Abc_NtkFraig( ntkTmp = *ppNtkMiter, &Params, 0, 0 );
-  Abc_NtkDelete( ntkTmp );
-
-  // Free all the networks
-  //Abc_NtkDelete( pKeyMiter );
-  //Abc_NtkDelete( pNtkTmpMiter1 );
-  //Abc_NtkDelete( pNtkTmpMiter2 );
-  //Abc_NtkDelete( pNtkMiter2 );
-  //ABC_FREE(pKeyMiter);
-  //ABC_FREE(pNtkTmpMiter2);
-  //ABC_FREE(pNtkTmpMiter1);
-  //ABC_FREE(pNtkMiter2);
-
-  
   return 0;
 }
 
+// Run DSAT from ABC on the constructed miter network to find
+// satisfying inputs for physical portion of CLAP attack
 int ClapAttack_RunSat(Abc_Ntk_t *pNtk) {
   int RetValue;
   int fAlignPol;
@@ -2968,10 +2056,9 @@ int ClapAttack_RunSat(Abc_Ntk_t *pNtk) {
   nLearnedDelta = 0;
   nLearnedPerce = 0;
 
-  //clk = Abc_Clock();
   RetValue = Abc_NtkDSat( pNtk, (ABC_INT64_T)nConfLimit, (ABC_INT64_T)nInsLimit, nLearnedStart, nLearnedDelta, nLearnedPerce, fAlignPol, fAndOuts, fNewSolver, fVerbose );
-  // verify that the pattern is correct
 
+  // verify that the pattern is correct
   if ( RetValue == 0 && Abc_NtkPoNum(pNtk) == 1 )
     {
       int * pSimInfo = Abc_NtkVerifySimulatePattern( pNtk, pNtk->pModel );
@@ -2980,33 +2067,21 @@ int ClapAttack_RunSat(Abc_Ntk_t *pNtk) {
 
       pCex = Abc_CexCreate( 0, Abc_NtkPiNum(pNtk), pNtk->pModel, 0, 0, 0 );
 
-      // Print full input/output
+      // DEBUG: Print full input/output
       //ClapAttack_PrintInp( pNtk, pNtk->pModel );
       //ClapAttack_PrintOut( pNtk, pSimInfo );
 
       ABC_FREE( pSimInfo );
       ABC_FREE( pCex );
-    }
-
-
-  // print CEX with pcex->pData[0] it is of type unsigned -> line 40 of ./src/misc/util/utilCex.h
-
-  /*if ( !fSilent )
-    {
-      if ( RetValue == -1 )
-	Abc_Print( 1, "UNDECIDED      " );
-      else if ( RetValue == 0 )
-	Abc_Print( 1, "SATISFIABLE    " );
-      else
-	Abc_Print( 1, "UNSATISFIABLE  " );
-      //Abc_PrintTime( 1, "Time", Abc_Clock() - clk );
-      }*/
-  
+    }  
   
   return RetValue;
 }
 
 // Note that this fails on underscore characters for some reason...
+// Determine which key value leads to presence/absence of an EOFM probe frequency component.
+// This is later used to infer the key value based on teh presence/absence of frequency component.
+// I.e. to infer the key value.
 void ClapAttack_InterpretDiHeuristic(Abc_Ntk_t *pNtk, Abc_Ntk_t *pNtkMiter, int *pModel, int NumKeys, int *KeyWithFreq, int *KeyNoFreq, int **ppDiFull) {
 
   int i, j, idx1, idx2, KeyIndex;
@@ -3145,116 +2220,8 @@ void ClapAttack_InterpretDiHeuristic(Abc_Ntk_t *pNtk, Abc_Ntk_t *pNtkMiter, int 
   free( pKey2 );
 }
 
-void ClapAttack_InterpretDi(Abc_Ntk_t *pNtk, int *pDiFull, int NumKeys, int *KeyWithFreq, int *KeyNoFreq) {
-
-  int i, KeyIndex;
-  Abc_Obj_t *pPi, *pPo;
-  int *pInp1, *pInp2, *pDi1, *pDi2, *pKey1, *pKey2;
-  
-  pInp1 = (int *)malloc( sizeof(int) * (Abc_NtkPiNum(pNtk)*2) );
-  pInp2 = (int *)malloc( sizeof(int) * (Abc_NtkPiNum(pNtk)*2) );
-  pDi1 = (int *)malloc( sizeof(int) * Abc_NtkPiNum(pNtk) );
-  pDi2 = (int *)malloc( sizeof(int) * Abc_NtkPiNum(pNtk) );
-  pKey1 = (int *)malloc( sizeof(int) * NumKeys );
-  pKey2 = (int *)malloc( sizeof(int) * NumKeys );
-  
-  for(i=0; i<(Abc_NtkPiNum(pNtk)*2); i++) {
-    pInp1[i] = pDiFull[i];
-    pInp2[i] = pDiFull[i];
-  }
-  
-  // Assign key->0
-  
-  // Goal: Iterate through each PI. Identify list of keys.
-  KeyIndex = 0;
-  Abc_NtkForEachPi( pNtk, pPi, i ) {
-    
-    // Are we looking at a key input?
-    if( strstr(Abc_ObjName(pPi), "key") ) {
-
-      pInp1[i] = pInp1[i+Abc_NtkPiNum(pNtk)];
-      // pInp1[i+Abc_NtkPiNum(pNtk)] = 0;
-      //pInp2[i] = 1;
-      pInp2[i+Abc_NtkPiNum(pNtk)] = pInp2[i];
-      //Abc_Print(1, "match!: %d=%s %d %d\n", i, Abc_ObjName(pPi), pInp[i], pOracleKey[keyindex] );
-
-      // Save off each key value to return
-      pKey1[KeyIndex] = pInp1[i];
-      pKey2[KeyIndex] = pInp2[i];
-      KeyIndex++;
-    }
-  }
-  
-  // Save off each input separtely
-  for( i=0; i < Abc_NtkPiNum(pNtk); i++ ) {
-    pDi1[i] = pInp1[i];
-    pDi2[i] = pInp1[i+Abc_NtkPiNum(pNtk)];
-  }
-
-  // Simulate Pattern 1
-  int * pSimInfo1 = Abc_NtkVerifySimulatePattern( pNtk, pDi1 );
-
-  // Simulate Pattern 2
-  int * pSimInfo2 = Abc_NtkVerifySimulatePattern( pNtk, pDi2 );
-
-  // Print pattern 2 input/output
-  ClapAttack_PrintInp( pNtk, pDi1 );
-  ClapAttack_PrintOut( pNtk, pSimInfo1 );
-  ClapAttack_PrintInp( pNtk, pDi2 );
-  ClapAttack_PrintOut( pNtk, pSimInfo2 );
-
-  Abc_NtkForEachPo( pNtk, pPo, i ) {
-    if ( pSimInfo1[i] - pSimInfo2[i] ) {
-      printf("Interpret: We had a frequency component for key=0!\n");
-      for (KeyIndex=0; KeyIndex < NumKeys; KeyIndex++) {
-	KeyWithFreq[KeyIndex] = pKey1[KeyIndex];
-	KeyNoFreq[KeyIndex] = pKey2[KeyIndex];
-      }
-    }
-  }
-
-  ABC_FREE( pSimInfo1 );
-  ABC_FREE( pSimInfo2 );
-
-  // Test for Key -> 1
-  // Save off each input separtely
-  for( i=0; i < Abc_NtkPiNum(pNtk); i++ ) {
-    pDi1[i] = pInp2[i];
-    pDi2[i] = pInp2[i+Abc_NtkPiNum(pNtk)];
-  }
-
-  // Simulate Pattern 1
-  pSimInfo1 = Abc_NtkVerifySimulatePattern( pNtk, pDi1 );
-
-  // Simulate Pattern 2
-  pSimInfo2 = Abc_NtkVerifySimulatePattern( pNtk, pDi2 );
-
-  // Print pattern 2 input/output
-  ClapAttack_PrintInp( pNtk, pDi1 );
-  ClapAttack_PrintOut( pNtk, pSimInfo1 );
-  ClapAttack_PrintInp( pNtk, pDi2 );
-  ClapAttack_PrintOut( pNtk, pSimInfo2 );
-
-  Abc_NtkForEachPo( pNtk, pPo, i ) {
-    if ( pSimInfo1[i] - pSimInfo2[i] ) {
-      printf("Interpret: We had a frequency component for key=1!\n");
-      for (KeyIndex=0; KeyIndex < NumKeys; KeyIndex++) {
-	KeyWithFreq[KeyIndex] = pKey2[KeyIndex];
-	KeyNoFreq[KeyIndex] = pKey1[KeyIndex];
-      }
-    }
-  }
-
-  ABC_FREE( pSimInfo1 );
-  ABC_FREE( pSimInfo2 );
-  free( pDi1 );
-  free( pDi2 );
-  free( pInp1 );
-  free( pInp2 );
-  free( pKey1 );
-  free( pKey2 );
-}
-
+// Infer key from simulated information in circuit. Essentially, do we have a
+// frequency component?
 int ClapAttack_OracleInferKey(Abc_Ntk_t *pNtk, int * pSimInfo1, int * pSimInfo2) {
   int i, fKeyFreq;
   Abc_Obj_t *pPo;
@@ -3272,6 +2239,8 @@ int ClapAttack_OracleInferKey(Abc_Ntk_t *pNtk, int * pSimInfo1, int * pSimInfo2)
   return fKeyFreq;
 }
 
+// Simulate the oracle circuit with the known key applied with our DI. This simulates the EOFM probing that occurs during
+// the CLAP attack.
 void ClapAttack_OracleSimDi(Abc_Ntk_t *pNtk, int * pDi, int NumKeys, int *KeyWithFreq, int *KeyNoFreq, int *WrongKeyValue) {
 
   int i;
@@ -3291,14 +2260,14 @@ void ClapAttack_OracleSimDi(Abc_Ntk_t *pNtk, int * pDi, int NumKeys, int *KeyWit
   // Simulate Pattern 1
   int * pSimInfo1 = Abc_NtkVerifySimulatePattern( pNtk, pDi1 );
 
-  // Print pattern 2 input/output
+  // Debig: Print pattern 1 input/output
   //ClapAttack_PrintInp( pNtk, pDi1 );
   //ClapAttack_PrintOut( pNtk, pSimInfo1 );
 
   // Simulate Pattern 2
   int * pSimInfo2 = Abc_NtkVerifySimulatePattern( pNtk, pDi2 );
 
-  // Print pattern 1 input/output
+  // DEBUG: Print pattern 2 input/output
   //ClapAttack_PrintInp( pNtk, pDi2 );
   //ClapAttack_PrintOut( pNtk, pSimInfo2 );
 
@@ -3310,14 +2279,14 @@ void ClapAttack_OracleSimDi(Abc_Ntk_t *pNtk, int * pDi, int NumKeys, int *KeyWit
   for ( i=0; i<NumKeys; i++ )
     WrongKeyValue[i] = (fKeyFreq) ? KeyNoFreq[i] : KeyWithFreq[i];
 
-  
+  // Cleanup  
   ABC_FREE( pSimInfo1 );
   ABC_FREE( pSimInfo2 );
   free( pDi1 );
   free( pDi2 );
-  //ABC_FREE( pDi );
 }
 
+// Update the global keystore with any key values that were determined by a CLAP iteration.
 void ClapAttack_UpdateKey(char *KeyNameTmp, int KeyValue, struct BSI_KeyData_t *pGlobalBsiKeys) {
 
   int keyindex;
@@ -3332,6 +2301,9 @@ void ClapAttack_UpdateKey(char *KeyNameTmp, int KeyValue, struct BSI_KeyData_t *
   pGlobalBsiKeys->Updated = 1;  
 }
 
+// Perform logical optimization and clean up our
+// network based on known keys after each
+// CLAP attack iteration.
 void ClapAttack_CleanKeyCnf( struct BSI_KeyData_t *pGlobalBsiKeys ) {
 
   int i;
@@ -3353,13 +2325,16 @@ void ClapAttack_CleanKeyCnf( struct BSI_KeyData_t *pGlobalBsiKeys ) {
 	  Abc_NtkDeleteObj( pPi );
       }
     }
-    
+
+    // Strash network, delete the old one, latch the new cleaned/reduced one as
+    // the global network.
     pNtkTmp = Abc_NtkStrash( pGlobalBsiKeys->pKeyCnf, 0, 1, 0 );
     Abc_NtkDelete( pGlobalBsiKeys->pKeyCnf );
     pGlobalBsiKeys->pKeyCnf = pNtkTmp;
   }
 }
 
+// Delete and remove any PI nodes in the network for known key inputs
 void ClapAttack_DelKnownKeys(Abc_Obj_t **ppNodeList, int NumKnownKeys ) {
 
   int i;
@@ -3370,6 +2345,8 @@ void ClapAttack_DelKnownKeys(Abc_Obj_t **ppNodeList, int NumKnownKeys ) {
   }
 }
 
+// hardcode the known key value into our network for any inferred key values during the CLAP attack.
+// This replaces the PI for the key input with a hard-coded constant and logically reduces the network.
 int ClapAttack_SetKnownKeys(Abc_Ntk_t *pNtkCone, Abc_Obj_t *pKey, struct BSI_KeyData_t *pGlobalBsiKeys ) {
 
   int keyindex;
@@ -3391,6 +2368,8 @@ int ClapAttack_SetKnownKeys(Abc_Ntk_t *pNtkCone, Abc_Obj_t *pKey, struct BSI_Key
   return 0;
 }
 
+// Apply the oracle circuits key to the global network in order to properly simulate
+// EOFM probing.
 void ClapAttack_OracleSetConeKeys(Abc_Ntk_t * pNtk, int * pInp, int * pOracleKey) {
 
   int keyindex, i;
@@ -3407,12 +2386,11 @@ void ClapAttack_OracleSetConeKeys(Abc_Ntk_t * pNtk, int * pInp, int * pOracleKey
 
       pInp[i] = pOracleKey[keyindex];
       pInp[i+Abc_NtkPiNum(pNtk)] = pOracleKey[keyindex];
-
-      //Abc_Print(1, "match!: %d=%s %d %d\n", i, Abc_ObjName(pPi), pInp[i], pOracleKey[keyindex] );
     }
   }
 }
 
+// Print the input value applied to the network to terminal.
 void ClapAttack_PrintInp(Abc_Ntk_t *pNtk, int * pInp) {
 
   int i;
@@ -3420,9 +2398,9 @@ void ClapAttack_PrintInp(Abc_Ntk_t *pNtk, int * pInp) {
   for ( i=0 ; i<Abc_NtkPiNum(pNtk) ; i++ ) {
     Abc_Print( 1, "Input %d: %d\n", i, pInp[i] );
   }
-
 }
 
+// Print the output value of the network to terminal.
 void ClapAttack_PrintOut(Abc_Ntk_t *pNtk, int * pOut) {
 
   int i;
@@ -3430,9 +2408,10 @@ void ClapAttack_PrintOut(Abc_Ntk_t *pNtk, int * pOut) {
   for ( i=0 ; i<Abc_NtkPoNum(pNtk) ; i++ ) {
     Abc_Print( 1, "Output %d: %d\n", i, pOut[i] );
   }
-
 }
 
+// Debug command to dump a network passed as an argument to a filename passed as an argument.
+// Dumps file as a bench file.
 int ClapAttack_WriteMiterBench(Abc_Ntk_t *pNtk, char *pFileName) {
 
    Abc_Ntk_t * pNtkTemp;
@@ -3440,24 +2419,28 @@ int ClapAttack_WriteMiterBench(Abc_Ntk_t *pNtk, char *pFileName) {
    Abc_NtkToAig( pNtkTemp );
    Io_WriteBenchLut( pNtkTemp, pFileName );
    Abc_NtkDelete( pNtkTemp );
-
   
    return 0;
 }
 
+// Debug command to dump a network passed as an argument to a filename passed as an argument.
+// Dumps file as a verilog file.
 int ClapAttack_WriteMiterVerilog(Abc_Ntk_t *pNtk, char *pFileName) {
 
    Io_Write( pNtk, pFileName, IO_FILE_VERILOG );
-  
+ 
    return 0;
 }
 
+// Function that renames both PIs and POs in the circuit to generic names.
+// To avoid name collision and standardize PI/PO names, rename them to a generic names.
+// It's a hack for now. It is extremely hard to track PI/PO relationships between
+// copies of circuit otherwise.
 int ClapAttack_RenameLogic( Abc_Ntk_t * pNtk, char *PiSuffix, char *KeySuffix, char *PoSuffix, int KeepName )
 {
   Abc_Obj_t * pObj;
   int nDigits, i, k, CountCur, CountMax = 0;
   char * pName, PrefLi[100], PrefLo[100], **NameTmp;
-
 
   // How many zeros od we need to prepend on pi names...
   nDigits = Abc_Base10Log( Abc_NtkPiNum(pNtk) );
@@ -3489,21 +2472,15 @@ int ClapAttack_RenameLogic( Abc_Ntk_t * pNtk, char *PiSuffix, char *KeySuffix, c
   Nm_ManFree( pNtk->pManName );
   pNtk->pManName = Nm_ManCreate( Abc_NtkCiNum(pNtk) + Abc_NtkCoNum(pNtk) + Abc_NtkBoxNum(pNtk) );
 
-  // Pis
+  // Rename Pis
   Abc_NtkForEachPi( pNtk, pObj, i ) {
     Abc_ObjAssignName( pObj, NameTmp[i], NULL );
   }
 	
-  // Pos
+  // Rename Pos
   nDigits = Abc_Base10Log( Abc_NtkPoNum(pNtk) );
-
-  // if (KeepName) {
-  //  Abc_NtkForEachPo( pNtk, pObj, i )
-  //    Abc_ObjAssignName( pObj, Abc_ObjName(pObj), PoSuffix );
-  //} else {
-    Abc_NtkForEachPo( pNtk, pObj, i )
-      Abc_ObjAssignName( pObj, Abc_ObjNameDummy("po", i, nDigits), PoSuffix );
-    //}
+  Abc_NtkForEachPo( pNtk, pObj, i )
+    Abc_ObjAssignName( pObj, Abc_ObjNameDummy("po", i, nDigits), PoSuffix );
   
   // Other logic
   // if PIs/POs already have nodes with what looks like latch names
@@ -3530,7 +2507,7 @@ int ClapAttack_RenameLogic( Abc_Ntk_t * pNtk, char *PiSuffix, char *KeySuffix, c
 	  break;
       CountMax = Abc_MaxInt( CountMax, CountCur );
     }
-  //printf( "CountMax = %d\n", CountMax );
+
   assert( CountMax < 100-2 );
   for ( i = 0; i <= CountMax; i++ )
     PrefLi[i] = PrefLo[i] = 'l';
@@ -3538,6 +2515,7 @@ int ClapAttack_RenameLogic( Abc_Ntk_t * pNtk, char *PiSuffix, char *KeySuffix, c
   PrefLo[i] = 'o';
   PrefLi[i+1] = 0;
   PrefLo[i+1] = 0;
+
   // create latch names
   assert( !Abc_NtkIsNetlist(pNtk) );
   nDigits = Abc_Base10Log( Abc_NtkLatchNum(pNtk) );
@@ -3548,7 +2526,7 @@ int ClapAttack_RenameLogic( Abc_Ntk_t * pNtk, char *PiSuffix, char *KeySuffix, c
       Abc_ObjAssignName( Abc_ObjFanout0(pObj), Abc_ObjNameDummy(PrefLo, i, nDigits), PoSuffix );
     }
 
-
+  // Cleanup allocated names
   for ( i=0; i < Abc_NtkPiNum(pNtk); i++) {
     free(NameTmp[i]);
    }
@@ -3557,12 +2535,14 @@ int ClapAttack_RenameLogic( Abc_Ntk_t * pNtk, char *PiSuffix, char *KeySuffix, c
   return 0;
 }
 
+// To avoid input collision and standardize inputs, rename them to a generic names.
+// It's a hack for now. It is extremely hard to track PI/PO relationships between
+// copies of circuit otherwise.
 int ClapAttack_RenameInput( Abc_Ntk_t * pNtk, char *PiSuffix, char *KeySuffix, char *PoSuffix, int nDigits )
 {
   Abc_Obj_t * pObj;
   int i, k, CountCur, CountMax = 0;
   char * pName, PrefLi[100], PrefLo[100], **NameTmpPo, **NameTmpPi;
-
 
   // Malloc name array
   NameTmpPo = (char **)malloc( sizeof(char *) * Abc_NtkPoNum(pNtk) );
@@ -3574,9 +2554,6 @@ int ClapAttack_RenameInput( Abc_Ntk_t * pNtk, char *PiSuffix, char *KeySuffix, c
   Abc_NtkForEachPo( pNtk, pObj, i ) {
     sprintf(NameTmpPo[i], "%s%s", Abc_ObjName(pObj), PoSuffix);
   }
-
-    // How many zeros od we need to prepend on pi names...
-  //nDigits = Abc_Base10Log( Abc_NtkPiNum(pNtk) );
 
   // Malloc name array
   NameTmpPi = (char **)malloc( sizeof(char *) * Abc_NtkPiNum(pNtk) );
@@ -3590,18 +2567,18 @@ int ClapAttack_RenameInput( Abc_Ntk_t * pNtk, char *PiSuffix, char *KeySuffix, c
       sprintf(NameTmpPi[i], "pi%s_key%s%s", Abc_ObjNameDummy("", i, nDigits), &((Abc_ObjName(pObj))[8]), KeySuffix);
     else
       sprintf(NameTmpPi[i], "pi%s%s",  Abc_ObjNameDummy("", i, nDigits), PiSuffix );
-   
   }
 
   // Delete all names
   Nm_ManFree( pNtk->pManName );
   pNtk->pManName = Nm_ManCreate( Abc_NtkCiNum(pNtk) + Abc_NtkCoNum(pNtk) + Abc_NtkBoxNum(pNtk) );
 
-  // Pos
+  // Rename POs
   Abc_NtkForEachPo( pNtk, pObj, i ) {
     Abc_ObjAssignName( pObj, NameTmpPo[i], NULL );
   }
 
+  // Rename PIs
   Abc_NtkForEachPi( pNtk, pObj, i ) {
     Abc_ObjAssignName( pObj, NameTmpPi[i], NULL );
   }
@@ -3631,7 +2608,7 @@ int ClapAttack_RenameInput( Abc_Ntk_t * pNtk, char *PiSuffix, char *KeySuffix, c
 	  break;
       CountMax = Abc_MaxInt( CountMax, CountCur );
     }
-  //printf( "CountMax = %d\n", CountMax );
+
   assert( CountMax < 100-2 );
   for ( i = 0; i <= CountMax; i++ )
     PrefLi[i] = PrefLo[i] = 'l';
@@ -3639,6 +2616,7 @@ int ClapAttack_RenameInput( Abc_Ntk_t * pNtk, char *PiSuffix, char *KeySuffix, c
   PrefLo[i] = 'o';
   PrefLi[i+1] = 0;
   PrefLo[i+1] = 0;
+
   // create latch names
   assert( !Abc_NtkIsNetlist(pNtk) );
   nDigits = Abc_Base10Log( Abc_NtkLatchNum(pNtk) );
@@ -3649,12 +2627,12 @@ int ClapAttack_RenameInput( Abc_Ntk_t * pNtk, char *PiSuffix, char *KeySuffix, c
       Abc_ObjAssignName( Abc_ObjFanout0(pObj), Abc_ObjNameDummy(PrefLo, i, nDigits), PoSuffix );
     }
 
-
+  // CLeanup PI/PO name storage
   for ( i=0; i < Abc_NtkPoNum(pNtk); i++) {
     free(NameTmpPo[i]);
   }
   free(NameTmpPo);
-
+  
   for ( i=0; i < Abc_NtkPiNum(pNtk); i++) {
     free(NameTmpPi[i]);
   }
@@ -3663,14 +2641,16 @@ int ClapAttack_RenameInput( Abc_Ntk_t * pNtk, char *PiSuffix, char *KeySuffix, c
   return 0;
 }
 
+// To avoid output collision and standardize outputs, rename them to a generic name.
+// It's a hack for now. It is extremely hard to track PI/PO relationships between
+// copies of circuit otherwise.
 int ClapAttack_RenameOutput( Abc_Ntk_t * pNtk, char *PoSuffix, int KeepName )
 {
   Abc_Obj_t * pObj;
   int nDigits, i, k, CountCur, CountMax = 0;
   char * pName, PrefLi[100], PrefLo[100], **NameTmp;
 
-
-  // How many zeros od we need to prepend on pi names...
+  // How many zeros do we need to prepend on pi names...
   nDigits = Abc_Base10Log( Abc_NtkPiNum(pNtk) );
 
   // Malloc name array
@@ -3684,24 +2664,19 @@ int ClapAttack_RenameOutput( Abc_Ntk_t * pNtk, char *PoSuffix, int KeepName )
     sprintf(NameTmp[i], "%s", Abc_ObjName(pObj));
   }
 
-  // Delete all names
+  // Delete all old PO names
   Nm_ManFree( pNtk->pManName );
   pNtk->pManName = Nm_ManCreate( Abc_NtkCiNum(pNtk) + Abc_NtkCoNum(pNtk) + Abc_NtkBoxNum(pNtk) );
 
-  // Pis
+  // Iterate PIs
   Abc_NtkForEachPi( pNtk, pObj, i ) {
     Abc_ObjAssignName( pObj, NameTmp[i], NULL );
   }
 	
-  // Pos
-  //if (KeepName) {
-  //  Abc_NtkForEachPo( pNtk, pObj, i )
-  //   Abc_ObjAssignName( pObj, Abc_ObjName(pObj), PoSuffix );
-  //} else {
-    nDigits = Abc_Base10Log( Abc_NtkPoNum(pNtk) );
-    Abc_NtkForEachPo( pNtk, pObj, i )
-      Abc_ObjAssignName( pObj, Abc_ObjNameDummy("po", i, nDigits), PoSuffix );
-    //}
+  // Now do the same for POs
+  nDigits = Abc_Base10Log( Abc_NtkPoNum(pNtk) );
+  Abc_NtkForEachPo( pNtk, pObj, i )
+    Abc_ObjAssignName( pObj, Abc_ObjNameDummy("po", i, nDigits), PoSuffix );
     
   // Other logic
   // if PIs/POs already have nodes with what looks like latch names
@@ -3728,7 +2703,6 @@ int ClapAttack_RenameOutput( Abc_Ntk_t * pNtk, char *PoSuffix, int KeepName )
 	  break;
       CountMax = Abc_MaxInt( CountMax, CountCur );
     }
-  //printf( "CountMax = %d\n", CountMax );
   assert( CountMax < 100-2 );
   for ( i = 0; i <= CountMax; i++ )
     PrefLi[i] = PrefLo[i] = 'l';
@@ -3736,7 +2710,8 @@ int ClapAttack_RenameOutput( Abc_Ntk_t * pNtk, char *PoSuffix, int KeepName )
   PrefLo[i] = 'o';
   PrefLi[i+1] = 0;
   PrefLo[i+1] = 0;
-  // create latch names
+
+  // Generate new names and assign them to POs
   assert( !Abc_NtkIsNetlist(pNtk) );
   nDigits = Abc_Base10Log( Abc_NtkLatchNum(pNtk) );
   Abc_NtkForEachLatch( pNtk, pObj, i )
@@ -3746,6 +2721,7 @@ int ClapAttack_RenameOutput( Abc_Ntk_t * pNtk, char *PoSuffix, int KeepName )
       Abc_ObjAssignName( Abc_ObjFanout0(pObj), Abc_ObjNameDummy(PrefLo, i, nDigits), PoSuffix );
     }
 
+  // Cleanup
   for ( i=0; i < Abc_NtkPiNum(pNtk); i++) {
     free(NameTmp[i]);
    }
@@ -4164,7 +3140,6 @@ void ClapAttack_GenSatAttackConfig( Abc_Ntk_t * pNtk, struct BSI_KeyData_t *pGlo
       }
     }
   }
-
 
   // Iterate over the entire network and replace any known keys
   ppKnownKeys = (Abc_Obj_t **)malloc(sizeof(Abc_Obj_t *) * numKnownKeys);
