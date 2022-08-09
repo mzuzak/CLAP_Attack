@@ -32,8 +32,8 @@ struct SatMiterList {
   struct SatMiterList * pPrev;
 };
 
-int ClapAttack_ClapAttackAbc(Abc_Frame_t * pAbc);
-int ClapAttack_ClapAttack(Abc_Frame_t * pAbc);
+int ClapAttack_ClapAttackAbc(Abc_Frame_t * pAbc, char *pKey, char *pOutFile, int alg, int keysConsideredCutoff, float keyElimCutoff);
+int ClapAttack_ClapAttack(Abc_Frame_t * pAbc, char *pKey, char *pOutFile, int alg, int keysConsideredCutoff, float keyElimCutoff);
 void ClapAttack_TraversalRecursive( Abc_Ntk_t * pNtk, Abc_Obj_t * pCurNode, struct BSI_KeyData_t * pGlobalBsiKeys, int *pOracleKey, int MaxKeysConsidered, Abc_Ntk_t ** ppCurKeyCnf, int *pTotalProbes );
 void ClapAttack_TraversalRecursiveHeuristic( Abc_Ntk_t * pNtk, Abc_Obj_t * pCurNode, struct BSI_KeyData_t * pGlobalBsiKeys, int MaxKeysConsidered, Abc_Ntk_t ** ppCurKeyCnf, struct SatMiterList ** ppSatMiterList, int *pNumProbes, int MaxProbes );
 void ClapAttack_CombineMitersHeuristic( struct SatMiterList ** ppSatMiterListOld, struct SatMiterList ** ppSatMiterListNew, int * pMaxNodesConsidered, int MaxKeysConsidered, int MaxPiNum, int fConsiderAll );
@@ -41,7 +41,7 @@ void ClapAttack_InterpretDiHeuristic(Abc_Ntk_t *pNtk, Abc_Ntk_t *pNtkMiter, int 
 void ClapAttack_EvalMultinodeProbe( struct SatMiterList *pSatMiter, Abc_Ntk_t *pNtk, struct BSI_KeyData_t * pGlobalBsiKeys, int *pOracleKey, Abc_Ntk_t ** ppCurKeyCnf, int MaxKeysConsidered );
 void ClapAttack_UpdateSatMiterList( struct SatMiterList ** ppSatMiterList, Abc_Obj_t ** ppNode, Abc_Ntk_t *pMiter, int NumKeys, char **KeyNames, int MaxNodesConsidered, float IdentifiableKeys, int *pModel );
 void ClapAttack_FreeSatMiterList( struct SatMiterList ** ppSatMiterList );
-void ClapAttack_GenSatAttackConfig( Abc_Ntk_t * pNtk, struct BSI_KeyData_t * pGlobalBsiKeys );
+void ClapAttack_GenSatAttackConfig( Abc_Ntk_t * pNtk, struct BSI_KeyData_t * pGlobalBsiKeys, char * pOutFile );
 int ClapAttack_UpdateGlobalKeyCnf ( Abc_Ntk_t **ppCurKeyCnf, struct BSI_KeyData_t * pGlobalBsiKeys );
 int ClapAttack_IsolateCone(Abc_Ntk_t * pNtk, Abc_Ntk_t ** ppNtkCone, Abc_Obj_t * pProbe);
 void ClapAttack_CleanCone( Abc_Ntk_t ** ppNtk );
@@ -80,7 +80,7 @@ int nAvgKeyCount;
 /* End Global Var for Probe Point Counter */
 
 // CLAP Attack wrapper function -- entry point to CLAP
-int ClapAttack_ClapAttackAbc(Abc_Frame_t * pAbc) {
+int ClapAttack_ClapAttackAbc(Abc_Frame_t * pAbc, char *pKey, char *pOutFile, int alg, int keysConsideredCutoff, float keyElimCutoff) {
   Abc_Ntk_t * pNtk;
   int result;
 
@@ -93,17 +93,17 @@ int ClapAttack_ClapAttackAbc(Abc_Frame_t * pAbc) {
   }
 
   // Call the main function
-  result = ClapAttack_ClapAttack(pAbc);
+  result = ClapAttack_ClapAttack(pAbc, pKey, pOutFile, alg, keysConsideredCutoff, keyElimCutoff);
 
   return result;
 }
 
-int ClapAttack_ClapAttack(Abc_Frame_t * pAbc) {
-  int i, j, NumKeys, KeyIndex, MaxKeysConsidered, KeysConsideredCutoff, KeysFound, MaxNodesConsidered;
+int ClapAttack_ClapAttack(Abc_Frame_t * pAbc, char *pKey, char *pOutFile, int alg, int keysConsideredCutoff, float keyElimCutoff) {
+  int i, j=0, NumKeys, KeyIndex, MaxKeysConsidered, KeysFound, MaxNodesConsidered;
   Abc_Ntk_t *pNtk, *pCurKeyCnf; 
   Abc_Obj_t *pPi, *pNode;
   struct BSI_KeyData_t GlobalBsiKeys;
-  int RunHeuristic = 0;
+  int RunHeuristic = alg;
   int TotalProbes = 0;
   int fConsiderAll = 0;
   int NumProbes, MaxProbes;
@@ -116,75 +116,57 @@ int ClapAttack_ClapAttack(Abc_Frame_t * pAbc) {
   nAvgKeyCount = 0;  
   /* End  Global Var for Probe Point Counter */
 
-  // Paper benchmarks -- c1908
-  // RLL
-  int pOracleKey[88] = {0,0,0,0,0,1,0,0,1,0,0,0,1,1,0,1,1,1,1,1,0,1,0,1,0,1,1,1,1,0,1,0,0,0,0,0,0,0,1,0,0,1,0,0,1,1,1,1,0,0,1,0,0,1,0,1,1,0,1,1,1,1,1,0,0,1,1,1,1,0,0,0,0,0,1,0,1,0,0,1,1,0,1,1,0,1,1,1};
-  // OA32
-  //int pOracleKey[174] = {1,1,1,0,1,0,0,1,0,0,1,1,0,0,1,1,0,1,1,1,1,1,0,0,1,1,1,0,0,0,1,0,0,0,1,0,0,0,0,1,1,0,0,1,0,0,0,1,0,0,1,1,1,0,0,1,0,0,1,0,1,1,1,1,0,1,1,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,1,0,1,1,1,0,0,0,1,0,0,1,0,0,0,1,1,0,1,1,1,1,1,0,0,0,1,0,0,1,1,0,1,1,0,1,1,0,1,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,1,0,1,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,1,1,1,0,1,0,1,0,1};
-  // BA32
-  //int pOracleKey[110] = {1,1,1,0,1,0,0,1,0,0,1,1,0,0,1,1,0,1,1,1,1,1,0,0,1,1,1,0,0,0,1,0,0,0,1,0,0,0,0,1,1,0,0,1,0,0,0,1,0,0,1,1,1,0,0,1,0,0,1,0,1,1,1,1,0,1,1,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,1,0,1,1,1,0,0,0,1,0,0,1,0,0,0,1,1,0,1,1,1,1,1,0};
-  // BA16
-  //int pOracleKey[78] = {1,1,0,0,1,0,0,1,0,0,1,0,0,1,1,1,1,0,1,0,0,1,1,1,1,1,0,1,1,1,1,1,1,0,0,0,0,0,1,1,0,0,1,1,1,0,1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,1,0,1,1,0,1,0,1,0,0,0,0,0};
-  // WF
-  //int pOracleKey[144] = {0,1,1,0,1,1,0,0,0,0,1,0,0,1,1,0,0,1,1,1,1,0,1,1,1,1,1,0,0,0,1,0,1,1,1,0,0,0,1,0,1,1,0,0,1,0,0,1,0,1,0,1,0,0,0,0,0,0,0,0,1,0,1,1,0,1,1,1,1,0,0,1,1,0,1,0,0,1,0,1,0,0,1,1,1,1,0,0,0,0,0,0,1,1,0,1,0,0,1,1,1,1,0,0,0,1,1,1,0,0,0,0,1,0,1,1,1,0,1,0,0,0,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1,0,0,1,0,1,1,1};
-  //SFLL
-  //int pOracleKey[33] = {0,1,1,1,0,1,0,0,0,1,1,1,0,0,0,0,0,0,1,1,0,0,0,0,1,0,0,0,0,1,1,1,0};
-  // WF-40
-  //   int pOracleKey[540] = {1,1,0,1,1,1,1,1,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,1,0,0,0,1,1,0,1,1,0,1,1,1,1,1,1,0,0,0,1,0,0,1,1,1,1,1,0,1,1,0,0,1,0,1,0,1,1,0,1,0,1,0,0,1,1,0,1,1,0,0,0,0,0,0,0,1,0,1,1,0,1,1,0,0,1,0,1,0,0,0,1,1,0,0,1,0,1,0,0,1,1,0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,1,1,1,0,1,0,1,1,1,1,1,0,1,0,0,0,1,0,1,1,1,1,0,1,0,1,1,1,1,0,1,0,1,1,0,0,0,0,1,1,0,1,1,1,1,1,1,0,0,1,1,0,1,0,1,0,1,0,0,0,0,1,0,0,1,0,0,1,0,1,1,1,1,1,0,0,1,1,0,1,1,1,0,1,1,1,1,1,1,1,1,0,1,1,1,1,0,0,0,1,1,1,0,0,0,1,1,0,0,0,0,0,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,1,1,0,1,0,0,0,0,0,1,1,1,0,1,0,1,0,1,0,0,0,0,0,1,0,0,0,0,1,1,1,0,1,1,0,0,1,1,0,1,1,0,0,0,0,1,1,0,1,0,0,0,0,0,1,1,1,0,0,1,0,1,0,1,1,1,1,0,0,1,0,0,0,0,1,0,1,1,1,0,0,1,0,0,1,1,1,1,0,0,1,1,1,1,0,1,1,0,0,0,1,0,1,0,1,0,0,1,1,1,0,1,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,1,0,0,1,0,0,1,1,0,1,1,0,1,0,1,1,0,0,0,0,0,1,0,0,1,1,0,0,0,1,1,1,0,0,0,1,0,0,1,0,1,1,0,0,1,1,0,1,0,0,0,0,1,1,0,1,1,0,0,0,0,0,1,1,1,0,1,0,1,0,1,0,1,1,1,1,0,0,1,1,0,1,1,0,1,1,1,0,1,0,0,1,1,1,1,0,1,0,1,1,1,1,0,1,1,0,0,1,0,1,1,0,1,1,0,0,1,0,0,0,1,1,0,1,0,0,1,1,0,1,1,0,1,0,1,1,0,1,0};
-  // WF-32
-  //int pOracleKey[384] = {0,0,0,1,0,0,1,1,1,0,1,0,1,0,1,1,0,0,0,0,0,1,0,0,0,0,0,0,0,1,1,0,0,1,1,1,0,1,1,0,1,1,0,0,0,1,1,1,0,1,1,0,0,1,1,1,1,0,0,0,1,0,0,1,1,0,1,1,1,1,0,0,1,0,0,1,1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,0,1,1,0,0,0,0,1,0,1,0,0,0,0,0,0,1,0,0,1,1,0,0,0,1,1,1,1,1,0,1,0,0,1,1,0,1,0,0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1,0,0,0,1,0,1,1,1,1,0,0,1,1,0,1,0,1,1,1,1,1,0,0,1,1,1,1,1,0,0,1,1,1,0,1,1,0,0,0,1,0,0,0,1,1,0,1,0,0,0,0,1,0,0,0,0,0,1,0,1,1,1,0,1,1,1,0,1,0,0,0,1,1,0,0,1,0,0,1,0,0,1,0,1,1,1,1,1,0,0,0,1,0,1,1,1,1,0,0,1,0,1,1,1,1,0,0,1,0,1,0,1,0,0,1,1,1,1,0,1,0,0,0,0,0,0,0,1,1,0,1,1,1,1,0,0,1,1,1,1,0,1,0,0,0,1,0,1,1,0,0,0,1,0,1,0,0,1,1,0,0,1,0,0,0,1,1,1,1,0,0,1,0,1,1,1,1,0,1,0,1,1,1,0,1,1,0,0,1,1,1,1,0,0,1,0,0,1,0,1,1,1,0,1,0,0,1,0,0,1,0,1,0,1,1,1,1,0,0,0,0,1,1,0,0,1,1,1,1,1,0,1,1,0,1,0,0};
+  //
+  // Convert Key to proper format string
+  //
   
-  // Paper benchmarks -- c5315
-  // RLL
-  //int pOracleKey[231] = {1,1,1,0,0,0,1,1,0,1,1,0,1,0,1,1,0,0,0,1,1,0,0,0,0,0,1,0,0,1,1,0,0,1,0,0,1,1,0,0,0,1,0,0,0,1,1,1,1,1,0,0,0,0,1,1,0,0,0,0,0,1,1,1,0,0,0,1,1,0,0,0,0,1,1,0,1,0,0,0,0,0,1,0,1,1,0,1,0,0,0,0,1,0,0,0,1,0,0,1,0,0,1,0,0,0,0,0,1,0,1,1,1,0,1,1,1,0,0,0,1,1,1,1,1,1,0,0,1,1,0,0,1,1,0,1,0,1,1,0,0,1,0,1,1,0,0,1,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,1,0,0,1,1,0,0,0,0,1,1,1,0,0,0,0,0,1,1,0,1,0,0,1,0,0,1,1,0,1,1,0,1,1,0,1,0,0,1,1,1,0,1,1,0,0,0,0,0,0,0,1,0,1,0,1,1,1,1,0,0,0,1,0,1,0,1,0};
-  // OA32
-  //int pOracleKey[252] = {1,1,1,0,1,0,0,1,0,0,1,1,0,0,1,1,0,1,1,1,1,1,0,0,1,1,1,0,0,0,1,0,0,0,1,0,0,0,0,1,1,0,0,1,0,0,0,1,0,0,1,0,1,1,1,0,1,0,1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,0,0,0,0,0,0,1,1,0,1,1,0,0,1,1,1,1,0,1,1,0,0,1,1,0,1,0,0,1,1,0,0,0,1,1,0,0,0,0,0,1,0,1,0,1,1,0,0,1,0,0,1,1,1,0,0,1,1,0,0,0,1,1,0,1,0,1,1,0,0,0,0,1,0,1,0,0,0,0,1,1,0,0,1,0,1,1,1,0,0,1,0,1,1,0,0,1,1,1,1,0,1,1,1,0,0,0,0,1,0,1,0,1,0,1,1,1,0,0,1,1,0,1,1,1,1,1,1,1,0,1,1,0,0,0,1,0,0,1,1,0,1,0,1,1,0,1,1,0,1,1,0,0,0,0,0,1,1,0,1,0,1,0,0,0,1,1,1,0,0,1,0,1,0,1,1,0,0,0};
-  // WF
-  //int pOracleKey[144] = {1,0,1,1,0,0,1,0,1,0,0,0,0,1,0,0,1,0,0,1,0,1,0,0,1,0,1,0,1,1,1,0,0,1,1,1,0,1,0,0,1,0,1,0,1,0,1,1,0,0,0,0,0,1,0,1,0,0,0,0,1,1,1,1,1,0,1,0,1,1,1,0,0,0,0,1,0,0,0,0,0,1,1,1,1,1,0,1,0,1,1,1,1,1,1,0,1,1,1,1,1,1,0,0,0,1,1,0,1,1,1,0,1,0,0,0,1,1,0,0,1,1,1,1,1,1,0,1,0,1,0,1,1,0,0,0,1,0,0,1,0,1,0,0};
-  //SFLL-178
-  //int pOracleKey[178] = {0,1,0,0,1,1,1,0,1,1,0,0,0,1,0,0,1,0,0,1,0,1,1,0,0,1,1,0,0,1,1,0,1,1,0,1,1,0,0,0,0,0,0,1,0,0,0,1,1,1,0,0,1,1,1,0,0,0,1,1,1,0,0,1,1,1,1,0,1,1,1,1,0,1,0,1,0,0,1,0,1,1,0,1,0,1,0,0,0,0,0,0,1,1,0,0,0,1,0,0,0,1,1,1,0,0,0,0,1,1,0,0,1,1,0,0,0,1,1,0,1,1,1,0,1,0,0,0,0,0,0,1,1,0,1,1,1,0,0,1,1,1,1,1,1,1,0,1,1,0,0,0,1,0,1,0,1,1,0,0,0,1,1,1,1,1,0,0,0,0,0,1,0,0,0,1,0,1};
-  //BA16
-  //int pOracleKey[156] = {1,1,1,0,1,0,0,1,0,0,1,1,0,0,1,1,0,1,1,1,1,1,0,0,1,1,1,0,0,0,1,0,0,0,1,0,0,0,0,1,1,0,0,1,0,0,0,1,0,0,1,0,1,1,1,0,1,0,1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,0,0,0,0,0,0,1,1,0,1,1,0,0,1,1,1,1,0,1,1,0,0,1,1,0,1,0,0,1,1,0,0,0,1,1,0,0,0,0,0,1,0,1,0,1,1,0,0,1,0,0,1,1,1,0,0,1,1,0,0,0,1,1,0,1,0,1,1,0,0,0,0,1,0,1,0,0,0,0,1,1,0,0};
-  // WF-40
-  //int pOracleKey[540] = {1,1,0,1,1,1,1,1,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,1,0,0,0,1,1,0,1,1,0,1,1,1,1,1,1,0,0,0,1,0,0,1,1,1,1,1,0,1,1,0,0,1,0,1,0,1,1,0,1,0,1,0,0,1,1,0,1,1,0,0,0,0,0,0,0,1,0,1,1,0,1,1,0,0,1,0,1,0,0,0,1,1,0,0,1,0,1,0,0,1,1,0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,1,1,1,0,1,0,1,1,1,1,1,0,1,0,0,0,1,0,1,1,1,1,0,1,0,1,1,1,1,0,1,0,1,1,0,0,0,0,1,1,0,1,1,1,1,1,1,0,0,1,1,0,1,0,1,0,1,0,0,0,0,1,0,0,1,0,0,1,0,1,1,1,1,1,0,0,1,1,0,1,1,1,0,1,1,1,1,1,1,1,1,0,1,1,1,1,0,0,0,1,1,1,0,0,0,1,1,0,0,0,0,0,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,1,1,0,1,0,0,0,0,0,1,1,1,0,1,0,1,0,1,0,0,0,0,0,1,0,0,0,0,1,1,1,0,1,1,0,0,1,1,0,1,1,0,0,0,0,1,1,0,1,0,0,0,0,0,1,1,1,0,0,1,0,1,0,1,1,1,1,0,0,1,0,0,0,0,1,0,1,1,1,0,0,1,0,0,1,1,1,1,0,0,1,1,1,1,0,1,1,0,0,0,1,0,1,0,1,0,0,1,1,1,0,1,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,1,0,0,1,0,0,1,1,0,1,1,0,1,0,1,1,0,0,0,0,0,1,0,0,1,1,0,0,0,1,1,1,0,0,0,1,0,0,1,0,1,1,0,0,1,1,0,1,0,0,0,0,1,1,0,1,1,0,0,0,0,0,1,1,1,0,1,0,1,0,1,0,1,1,1,1,0,0,1,1,0,1,1,0,1,1,1,0,1,0,0,1,1,1,1,0,1,0,1,1,1,1,0,1,1,0,0,1,0,1,1,0,1,1,0,0,1,0,0,0,1,1,0,1,0,0,1,1,0,1,1,0,1,0,1,1,0,1,0};
+  // get length of string str
+  int str_length = 0;
+  for (i = 0; pKey[i] != '\0'; i++) {
+    str_length++;
+  }
   
-  // Paper benchmarks -- des
-  // RLL
-  //int pOracleKey[256] = {1,0,0,0,1,0,0,1,0,1,0,0,0,1,1,1,0,1,1,1,1,1,0,0,1,1,0,1,0,0,0,1,0,0,1,0,1,0,1,1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,1,1,1,0,0,1,1,0,1,0,1,0,0,1,1,1,0,0,1,0,1,0,0,1,1,0,1,1,0,0,0,0,1,1,0,1,0,1,1,0,0,0,0,1,1,1,0,0,1,1,0,1,1,1,0,1,0,0,1,0,0,0,1,1,0,1,0,1,1,1,1,0,0,0,0,0,1,0,0,1,1,1,1,0,0,0,0,1,0,0,1,1,0,0,1,1,0,0,0,0,1,1,0,0,1,1,0,0,1,0,0,1,1,0,1,1,0,1,0,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,0,0,0,1,0,0,1,1,0,1,0,0,0,0,0,0,1,1,1,0,1,0,0,1,0,0,0,0,0,1,0,1,1,0,1,1,0,1,0,0,0,1,1,1,0,0,0,1,0,0,1,1,0,0,0,0,1,0,1,0,0,0,0,1,0,1,1,1};
-  // BA16
-  //int pOracleKey[368] = {1,1,1,0,1,0,0,1,0,0,1,1,0,0,1,1,0,1,1,1,1,1,0,0,1,1,1,0,0,0,1,0,0,0,1,0,0,0,0,1,1,0,0,1,0,0,0,1,0,0,1,0,1,1,1,0,1,0,1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,0,0,0,0,0,0,1,1,0,1,1,0,0,1,1,1,1,0,1,1,0,0,1,1,0,1,0,0,1,1,0,0,0,1,1,0,0,0,0,0,1,0,1,0,1,1,0,0,1,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,1,0,1,1,1,0,1,1,1,1,0,0,0,0,0,0,1,1,1,0,1,0,0,0,1,1,1,1,1,0,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,1,0,0,1,1,0,0,1,1,1,0,1,0,0,0,0,0,0,0,0,0,1,1,1,0,1,0,0,0,1,1,1,1,0,0,1,1,0,0,0,0,0,0,0,1,1,0,0,1,1,1,1,1,0,1,1,1,1,0,1,1,0,1,1,0,1,0,1,0,1,1,0,0,1,0,0,0,1,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,1,1,0,1,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,1,0,1,1,0,1,1,0,1,1,0,0,1,1,0,1,1,1,0,0,1,0,1,0,0,0,0,0,1,0,0,1,1,1,1,0,0,1,0,1,0,1,1,1,1,1,1,1,0,1,1,0,1,1,1,0,1,0,0,0,0,0,0,1,0,0,1,1,0,0,0,0};
-  // SFLL
-  //int pOracleKey[256] = {1,0,0,1,1,1,0,0,1,1,0,1,0,1,1,0,1,0,1,0,1,0,0,1,1,1,1,1,0,0,1,1,0,1,0,0,0,1,1,0,0,0,1,1,1,1,1,0,1,1,1,0,1,0,0,1,1,1,1,1,0,1,0,0,0,0,0,0,0,1,0,1,0,0,0,1,1,1,1,0,1,1,0,1,1,0,0,0,1,0,0,0,1,1,0,0,1,1,1,1,0,1,1,0,0,0,1,1,1,1,1,1,0,1,0,1,0,0,1,0,0,1,0,0,1,0,0,0,1,1,0,0,0,0,1,1,0,1,0,1,0,0,1,1,0,0,1,0,1,1,0,0,0,0,1,0,0,1,1,1,0,1,1,1,1,1,1,0,1,1,0,1,1,1,0,0,1,0,1,0,0,1,1,0,0,0,1,1,0,1,0,0,0,0,0,0,1,1,0,1,1,1,1,0,0,0,0,1,0,1,1,1,0,1,1,0,1,0,0,0,0,0,1,0,1,1,0,0,1,0,0,0,0,1,0,0,1,0,1,1,0,1,0,1,1,1,1,0,0,1,0,0,1,0,1,0};
-  // WF-40
-  //int pOracleKey[540] = {1,1,0,1,1,1,1,1,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,1,0,0,0,1,1,0,1,1,0,1,1,1,1,1,1,0,0,0,1,0,0,1,1,1,1,1,0,1,1,0,0,1,0,1,0,1,1,0,1,0,1,0,0,1,1,0,1,1,0,0,0,0,0,0,0,1,0,1,1,0,1,1,0,0,1,0,1,0,0,0,1,1,0,0,1,0,1,0,0,1,1,0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,1,1,1,0,1,0,1,1,1,1,1,0,1,0,0,0,1,0,1,1,1,1,0,1,0,1,1,1,1,0,1,0,1,1,0,0,0,0,1,1,0,1,1,1,1,1,1,0,0,1,1,0,1,0,1,0,1,0,0,0,0,1,0,0,1,0,0,1,0,1,1,1,1,1,0,0,1,1,0,1,1,1,0,1,1,1,1,1,1,1,1,0,1,1,1,1,0,0,0,1,1,1,0,0,0,1,1,0,0,0,0,0,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,1,1,0,1,0,0,0,0,0,1,1,1,0,1,0,1,0,1,0,0,0,0,0,1,0,0,0,0,1,1,1,0,1,1,0,0,1,1,0,1,1,0,0,0,0,1,1,0,1,0,0,0,0,0,1,1,1,0,0,1,0,1,0,1,1,1,1,0,0,1,0,0,0,0,1,0,1,1,1,0,0,1,0,0,1,1,1,1,0,0,1,1,1,1,0,1,1,0,0,0,1,0,1,0,1,0,0,1,1,1,0,1,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,1,0,0,1,0,0,1,1,0,1,1,0,1,0,1,1,0,0,0,0,0,1,0,0,1,1,0,0,0,1,1,1,0,0,0,1,0,0,1,0,1,1,0,0,1,1,0,1,0,0,0,0,1,1,0,1,1,0,0,0,0,0,1,1,1,0,1,0,1,0,1,0,1,1,1,1,0,0,1,1,0,1,1,0,1,1,1,0,1,0,0,1,1,1,1,0,1,0,1,1,1,1,0,1,1,0,0,1,0,1,1,0,1,1,0,0,1,0,0,0,1,1,0,1,0,0,1,1,0,1,1,0,1,0,1,1,0,1,0};
+  // create an array with size as string
+  // length and initialize with 0
+  int * pOracleKey = (int *) malloc(sizeof(int) * str_length);
+  
+  // Traverse the string
+  for (i = 0; pKey[i] != '\0'; i++) {
+    // subtract str[i] by 48 to convert it to int
+    // (int)(str[i])
+    pOracleKey[j] = (pKey[i] - 48);
+    j++;
+  }  
 
-  // Paper benchmarks -- b14
-  // RLL
-  //int pOracleKey[256] = {1,0,1,1,0,1,1,0,1,0,1,1,0,0,1,0,1,1,0,1,0,1,0,1,0,0,1,0,1,1,0,1,0,0,1,0,0,1,0,1,0,1,0,1,0,1,0,0,1,0,1,1,1,0,0,1,0,0,1,0,0,1,0,1,1,0,1,0,1,0,1,0,1,0,0,0,1,0,1,0,1,1,1,0,1,0,0,0,1,0,1,0,1,1,0,1,1,0,1,0,0,0,1,0,0,1,1,1,1,0,0,1,0,0,1,0,1,0,1,1,0,0,1,1,0,1,0,1,0,0,1,0,1,0,1,0,1,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,0,1,0,1,0,1,1,0,1,0,1,0,0,1,1,0,0,1,1,0,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,0,1,0,1,1,0,1,0,0,1,0,1,1,0,0,1,1};
-  // OA32
-  //int pOracleKey[500] = {1,1,1,0,1,0,0,1,0,0,1,1,0,0,1,1,0,1,1,1,1,1,0,0,1,1,1,0,0,0,1,0,0,0,1,0,0,0,0,1,1,0,0,1,0,0,0,1,0,0,1,0,1,1,1,0,1,0,1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,0,0,0,0,0,0,1,1,0,1,1,0,0,1,1,1,1,0,1,1,0,0,1,1,0,1,0,0,1,1,0,0,0,1,1,0,0,0,0,0,1,0,1,0,1,1,0,0,1,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,1,0,1,1,1,0,1,1,1,1,0,0,0,0,0,0,1,1,1,0,1,0,0,0,1,1,1,1,1,0,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,1,0,0,1,1,0,0,1,1,1,0,1,0,0,0,0,0,0,0,0,0,1,1,1,0,1,0,0,0,1,1,1,1,0,0,1,1,0,0,0,0,0,0,0,1,1,0,0,1,1,1,1,1,0,1,1,1,1,0,1,1,0,1,1,0,1,0,1,0,1,1,0,0,1,0,0,0,1,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,1,1,0,1,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,1,0,1,1,0,1,1,0,1,1,0,0,1,1,0,1,1,1,0,0,1,0,1,0,0,0,0,0,1,0,0,1,1,1,1,0,0,1,0,1,1,1,1,1,1,0,1,1,0,0,1,0,1,0,0,0,0,0,1,1,1,1,0,1,1,0,0,1,1,1,0,1,0,1,1,1,0,0,1,1,0,0,0,0,0,1,0,1,1,0,1,0,0,1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,1,0,1,1,0,1,1,1,1,0,0,1,1,1,0,1,0,1,0,0,0,0,1,0,1,1,0,0,1,1,1,0,0,0,1,1,1,0,1,1,1,0,0,0,0,0,0,0,0,0,0,1,1,0,1,0,0,1,0,0,1,0,0,0,1,0,0,0,1,0,1,1,0,0,1,1,0,1,1,1,0,0,1,0,1,0,1,0,0,0,1,0,1,0,1};
-  // BA32
-  //int pOracleKey[436] = {1,1,1,0,1,0,0,1,0,0,1,1,0,0,1,1,0,1,1,1,1,1,0,0,1,1,1,0,0,0,1,0,0,0,1,0,0,0,0,1,1,0,0,1,0,0,0,1,0,0,1,0,1,1,1,0,1,0,1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,0,0,0,0,0,0,1,1,0,1,1,0,0,1,1,1,1,0,1,1,0,0,1,1,0,1,0,0,1,1,0,0,0,1,1,0,0,0,0,0,1,0,1,0,1,1,0,0,1,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,1,0,1,1,1,0,1,1,1,1,0,0,0,0,0,0,1,1,1,0,1,0,0,0,1,1,1,1,1,0,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,1,0,0,1,1,0,0,1,1,1,0,1,0,0,0,0,0,0,0,0,0,1,1,1,0,1,0,0,0,1,1,1,1,0,0,1,1,0,0,0,0,0,0,0,1,1,0,0,1,1,1,1,1,0,1,1,1,1,0,1,1,0,1,1,0,1,0,1,0,1,1,0,0,1,0,0,0,1,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,1,1,0,1,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,1,0,1,1,0,1,1,0,1,1,0,0,1,1,0,1,1,1,0,0,1,0,1,0,0,0,0,0,1,0,0,1,1,1,1,0,0,1,0,1,1,1,1,1,1,0,1,1,0,0,1,0,1,0,0,0,0,0,1,1,1,1,0,1,1,0,0,1,1,1,0,1,0,1,1,1,0,0,1,1,0,0,0,0,0,1,0,1,1,0,1,0,0,1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,1,0,1,1,0,1,1,1,1,0,0,1,1,1,0,1,0,1,0,0,0,0,1,0,1,1,0,0,1,1,1};
-  // BA16
-  //int pOracleKey[404] = {1,1,1,0,1,0,0,1,0,0,1,1,0,0,1,1,0,1,1,1,1,1,0,0,1,1,1,0,0,0,1,0,0,0,1,0,0,0,0,1,1,0,0,1,0,0,0,1,0,0,1,0,1,1,1,0,1,0,1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,0,0,0,0,0,0,1,1,0,1,1,0,0,1,1,1,1,0,1,1,0,0,1,1,0,1,0,0,1,1,0,0,0,1,1,0,0,0,0,0,1,0,1,0,1,1,0,0,1,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,1,0,1,1,1,0,1,1,1,1,0,0,0,0,0,0,1,1,1,0,1,0,0,0,1,1,1,1,1,0,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,1,0,0,1,1,0,0,1,1,1,0,1,0,0,0,0,0,0,0,0,0,1,1,1,0,1,0,0,0,1,1,1,1,0,0,1,1,0,0,0,0,0,0,0,1,1,0,0,1,1,1,1,1,0,1,1,1,1,0,1,1,0,1,1,0,1,0,1,0,1,1,0,0,1,0,0,0,1,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,1,1,0,1,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,1,0,1,1,0,1,1,0,1,1,0,0,1,1,0,1,1,1,0,0,1,0,1,0,0,0,0,0,1,0,0,1,1,1,1,0,0,1,0,1,1,1,1,1,1,0,1,1,0,0,1,0,1,0,0,0,0,0,1,1,1,1,0,1,1,0,0,1,1,1,0,1,0,1,1,1,0,0,1,1,0,0,0,0,0,1,0,1,1,0,1,0,0,1,1,1,1,0,0,0,0,0,0,0,0,1,1,1};
-  // SFLL
-  //int pOracleKey[277] = {1,0,1,1,1,0,1,1,1,0,1,1,0,0,1,0,1,0,0,1,1,1,1,1,1,0,1,1,1,1,1,1,0,1,0,1,1,0,0,0,1,0,0,1,1,1,0,0,0,1,0,1,0,1,1,1,0,0,1,0,0,1,1,0,1,0,1,1,0,0,1,1,0,1,1,1,0,0,0,0,0,0,1,1,1,0,1,0,1,1,0,0,1,1,0,1,0,0,0,1,1,0,0,0,1,1,0,1,1,0,1,1,0,0,1,1,1,0,1,0,0,0,1,0,1,1,0,1,0,0,0,0,1,1,0,0,1,1,1,0,0,0,1,1,0,1,0,1,1,1,1,1,1,0,1,1,1,1,0,0,1,1,1,0,0,1,0,1,1,1,0,0,1,1,1,1,0,1,0,0,1,0,0,0,1,1,1,0,1,1,0,0,1,0,0,0,0,1,1,0,0,1,0,0,1,1,0,0,0,1,1,1,0,1,0,1,0,1,1,0,0,1,0,0,1,0,1,1,0,1,0,0,0,0,1,0,1,0,1,1,0,1,1,0,0,1,0,1,0,0,0,0,1,0,0,0,0,0,0,1,0,1,1,0,0,0,1,0,1,0,1,0,0,0,1,1,1};
-  //WF-40
-  //int pOracleKey[540] = {1,1,0,1,1,1,1,1,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,1,0,0,0,1,1,0,1,1,0,1,1,1,1,1,1,0,0,0,1,0,0,1,1,1,1,1,0,1,1,0,0,1,0,1,0,1,1,0,1,0,1,0,0,1,1,0,1,1,0,0,0,0,0,0,0,1,0,1,1,0,1,1,0,0,1,0,1,0,0,0,1,1,0,0,1,0,1,0,0,1,1,0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,1,1,1,0,1,0,1,1,1,1,1,0,1,0,0,0,1,0,1,1,1,1,0,1,0,1,1,1,1,0,1,0,1,1,0,0,0,0,1,1,0,1,1,1,1,1,1,0,0,1,1,0,1,0,1,0,1,0,0,0,0,1,0,0,1,0,0,1,0,1,1,1,1,1,0,0,1,1,0,1,1,1,0,1,1,1,1,1,1,1,1,0,1,1,1,1,0,0,0,1,1,1,0,0,0,1,1,0,0,0,0,0,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,1,1,0,1,0,0,0,0,0,1,1,1,0,1,0,1,0,1,0,0,0,0,0,1,0,0,0,0,1,1,1,0,1,1,0,0,1,1,0,1,1,0,0,0,0,1,1,0,1,0,0,0,0,0,1,1,1,0,0,1,0,1,0,1,1,1,1,0,0,1,0,0,0,0,1,0,1,1,1,0,0,1,0,0,1,1,1,1,0,0,1,1,1,1,0,1,1,0,0,0,1,0,1,0,1,0,0,1,1,1,0,1,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,1,0,0,1,0,0,1,1,0,1,1,0,1,0,1,1,0,0,0,0,0,1,0,0,1,1,0,0,0,1,1,1,0,0,0,1,0,0,1,0,1,1,0,0,1,1,0,1,0,0,0,0,1,1,0,1,1,0,0,0,0,0,1,1,1,0,1,0,1,0,1,0,1,1,1,1,0,0,1,1,0,1,1,0,1,1,1,0,1,0,0,1,1,1,1,0,1,0,1,1,1,1,0,1,1,0,0,1,0,1,1,0,1,1,0,0,1,0,0,0,1,1,0,1,0,0,1,1,0,1,1,0,1,0,1,1,0,1,0};
+  // Print out all configurable program state for user.
+  printf("\nCLAP ATTACK CONFIGURATION:\n");
+  printf("Physical attack algorithm (0: Fixed EOFM Probe, 1: Multinode Probe): %d\n", alg);
+  printf("Keys Considered Cutoff (i.e. max fanin keys for node): %d\n", keysConsideredCutoff);
+  printf("Keys Eliminated Cutoff (minumum portion of keyspace that must be eliminated to probe -- MULTI-NODE PROBING ONLY!): %f\n", keyElimCutoff);
+    
+  // Print the oracle key value.
+  printf("Correct Oracle Key: {");
+  for (i=0; i<str_length; i++){
+    printf("%d, ", pOracleKey[i]);
+  }
+  printf("}\n");
 
+  printf("Output File for Logical Attack: %s\n", pOutFile);
+  printf("\nLaunching CLAP Attack...\n\n");
+  
+  // Parameter for the maximum keys inputs that can be fanned into a node before ignoring it.
   // DEBUG: print information about the network
   //Abc_Print(1, "The network with name %s has:\n", Abc_NtkName(pNtk));
   //Abc_Print(1, "\t- %d primary inputs;\n", Abc_NtkPiNum(pNtk));
   //Abc_Print(1, "\t- %d primary outputs;\n", Abc_NtkPoNum(pNtk));
   //Abc_Print(1, "\t- %d AND gates;\n", Abc_NtkNodeNum(pNtk));
-
+  
   // Get the network that is read into ABC ... THIS IS THE BACKUP COPY FOR NOW.
   pNtk = Abc_FrameReadNtk(pAbc);
 
   // Count keys
   NumKeys = ClapAttack_GetNumKeys( pNtk );
   ClapAttack_InitKeyStore( NumKeys, &GlobalBsiKeys );
-  KeysConsideredCutoff = 7;
   MaxProbes = 3;
   
   // Set visited for each node to 0
@@ -199,15 +181,12 @@ int ClapAttack_ClapAttack(Abc_Frame_t * pAbc) {
   // NOTE -- THIS RUNS ALGORITHM 2, MULTI-NODE PROBING.
   if(RunHeuristic) {
 
-    // Parameter for the maximum keys inputs that can be fanned into a node before ignoring it.
-    KeysConsideredCutoff = 11;
-
     // Infinite loop -- break when you run out of probe-able nodes
     while (1) {
 
       // Iteratively increase the number of keys we are willing to consider in the fan-in for a probe-able node
       // This ensures that only the best node at a given time will be considered for probing
-      for ( MaxKeysConsidered = 1; MaxKeysConsidered < KeysConsideredCutoff; MaxKeysConsidered++ ) {
+      for ( MaxKeysConsidered = 1; MaxKeysConsidered < keysConsideredCutoff; MaxKeysConsidered++ ) {
 
 	// How many keys are we currently considering?
 	printf("Set Number of Keys considered to: %d\n\n", MaxKeysConsidered);
@@ -289,7 +268,7 @@ int ClapAttack_ClapAttack(Abc_Frame_t * pAbc) {
       if (pSatMiterList) {
 
 	// Note that this is gated by eliminating a sufficient portion of the key space to make the probe worthwhile
-	if (pSatMiterList->IdentifiableKeyBits >= (0.0625)) {
+	if (pSatMiterList->IdentifiableKeyBits >= (keyElimCutoff)) {
 
 	  // Simulate and infer from the EOFM probe.
 	  TotalProbes++;
@@ -317,7 +296,7 @@ int ClapAttack_ClapAttack(Abc_Frame_t * pAbc) {
     
     // Starting from nodes with a single key input in their fan-in -- look for sensitizing inputs/nodes to probe.
     // Iteratively consider more key inputs until cutoff is reached.
-    for ( MaxKeysConsidered = 1; MaxKeysConsidered  < KeysConsideredCutoff; MaxKeysConsidered++ ) {
+    for ( MaxKeysConsidered = 1; MaxKeysConsidered  < keysConsideredCutoff; MaxKeysConsidered++ ) {
 
       /* Probe Point Counter  
       MaxKeysConsidered = KeysConsideredCutoff-1;
@@ -363,8 +342,8 @@ int ClapAttack_ClapAttack(Abc_Frame_t * pAbc) {
   }
   
   // Append known keys into partial key CNF for finalized circuit formulation
-  ClapAttack_WriteMiterVerilog(GlobalBsiKeys.pKeyCnf, "global_keystore.v");
-  ClapAttack_GenSatAttackConfig( pNtk, &GlobalBsiKeys );
+  //ClapAttack_WriteMiterVerilog(GlobalBsiKeys.pKeyCnf, "global_keystore.v");
+  ClapAttack_GenSatAttackConfig( pNtk, &GlobalBsiKeys, pOutFile );
   
 
   // Print the final key value inferred from the attack.
@@ -3127,7 +3106,7 @@ int ClapAttack_CmpKeyName(char *KeyName1, char *KeyName2, int KeyLen1, int KeyLe
 // After running the physical portion of the CLAP attack, we need to dump all physically
 // leaked key info in to a format that can be read in by the open-source SAT attack tool
 // by Pramod et al (HOST'15)
-void ClapAttack_GenSatAttackConfig( Abc_Ntk_t * pNtk, struct BSI_KeyData_t *pGlobalBsiKeys ) {
+void ClapAttack_GenSatAttackConfig( Abc_Ntk_t * pNtk, struct BSI_KeyData_t *pGlobalBsiKeys, char * pOutFile ) {
 
   Abc_Ntk_t *pNtkTmp, * pNtkTmpSwap, * pNtkFinal;
   Abc_Obj_t * pObj, * pPi, * pPo, * pNode, *pNode2, **ppKnownKeys, *pObj2, **ppPoVec;
@@ -3243,9 +3222,10 @@ void ClapAttack_GenSatAttackConfig( Abc_Ntk_t * pNtk, struct BSI_KeyData_t *pGlo
     Abc_NtkDelete( pNtkTmp );
     pNtkTmp = pNtkTmpSwap;
 
-    // Dump final SAT attack bench file
-    Io_Write( pNtkTmp, "final_sat_dump_miter.v", IO_FILE_VERILOG );
-    
+    // DEBUG, dump final circuit without partial key logic appended
+    //Io_Write( pNtkTmp, "final_sat_dump_miter.v", IO_FILE_VERILOG );
+
+    // Append together partial key logic
     if ( !Abc_NtkAppendSilent( pNtkFinal, pNtkTmp, 1 ) ) {
       Abc_NtkDelete( pNtkTmp );
       Abc_Print( -1, "Appending the networks failed.\n" );
@@ -3301,7 +3281,7 @@ void ClapAttack_GenSatAttackConfig( Abc_Ntk_t * pNtk, struct BSI_KeyData_t *pGlo
   pNtkFinal = pNtkTmpSwap;
 
   // Dump final SAT attack bench file
-  Io_Write( pNtkFinal, "final_sat_dump.bench", IO_FILE_BENCH );
+  Io_Write( pNtkFinal, pOutFile, IO_FILE_BENCH );
 
 }
 

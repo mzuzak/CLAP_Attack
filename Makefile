@@ -57,7 +57,7 @@ ARCHFLAGS := $(ARCHFLAGS)
 
 OPTFLAGS  ?= -g -O
 
-CFLAGS    += -Wall -Wno-unused-function -Wno-write-strings -Wno-sign-compare -Wcomment $(ARCHFLAGS)
+CFLAGS    += -Wall -Wno-unused-function -Wno-write-strings -Wno-sign-compare -Wno-comment $(ARCHFLAGS)
 ifneq ($(findstring arm,$(shell uname -m)),)
 	CFLAGS += -DABC_MEMALIGN=4
 endif
