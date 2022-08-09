@@ -32,13 +32,58 @@ The CLAP attack is run within the ABC synthesis tool. After successfully compili
 
     read_bench <BENCHMARK_NAME>
 
-* Launch the CLAP attack against this benchmark. The usage documentation for the command is shown below:
+* Launch the CLAP attack against this benchmark. The usage notes for the command is shown below:
 
+    abc 01> clap -h
+    usage: clap [-mclovh] -k <key> 
+                   The physical portion of the CLAP attack in ABC.
+        -k <key>   : input the correct oracle key value for EOFM probing simulation 
+        -m         : use multi-node probing algorithm (alg. 2) for CLAP attack, omitting this command uses fixed EOFM probe algorithm (alg. 1)
+        -c <int>   : maximum number of key inputs for a node to be considered for EOFM probing [default = 7]
+        -l <float> : minimum portion of keyspace that must be eliminated for a multi-node probe to be run [default = 0.006125]
+        -o <str>   : set name of SAT solver output file from physical portion of CLAP attack [default = "physical_clap_out.bench"]
+        -v         : toggle printing verbose information [default = no]
+        -h         : print the command usage 
 
+* After attack termination, the CLAP attack outputs the known key values as well as a partially unlocked circuit in the file `physical_clap_out.bench' (unless another name was selected). This circuit can be passed directly to the open-source SAT attack toolkit from Subramanyan et al. in "Evaluating the security of logic encryption algorithms" to initiate the logical portion of the CLAP attack. By doing so, the SAT attack will build upon the physical-attack-limited keyspace produced by this tool.
+    
+## CLAP Attack Example Runs
 
+* CLAP Attack Example 1
+The commands below launch the fixed EOFM probing algorithm (algo. 1) for the CLAP attack against the c1908 benchmark circuit obfuscated with SLL. The attack considers nodes with no more than 7 fan-in key inputs.
+    
+    moo@moo-VirtualBox:~/Research/CLAP_Attack$ ./abc
+    UC Berkeley, ABC 1.01 (compiled Aug  9 2022 11:42:27)
+    abc 01> read_bench ./probing_benchmarks/c1908/SLL/c1908_SLL.bench 
+    abc 02> clap -k 0000010010001101111101010111101000000010010011110010010110111110011110000010100110110111
+    
+The output of this sample should be:
+    
+    KeyStore is now: {-1, -1, -1, -1, -1, -1, 0, 0, 1, 0, 0, 0, 1, 1, -1, -1, 1, 1, -1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0, 0, 1, 1, -1, 1, -1, -1, 1, -1, 0, 1, -1, -1, 1, -1, 1, 1, 1, -1, 1, 0, 0, 1, 1, 1, -1, -1, -1, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 1, -1, -1, -1, -1, }
+
+    We found 53 of 88 total keys using 335 probes
+
+Additionally, one can find the partially unlocked `physical_clap_out.bench` file in the launch directory. The SAT attack can be run directly against this file.
+    
+* CLAP Attack Example 2
+The commands below launch the multi-node probing algorithm (algo. 2) for the CLAP attack against the c1908 benchmark circuit obfuscated with SLL. The attack considers nodes with no more than 7 fan-in key inputs and a given multinode probe must eliminate at least 0.5% of the keyspace in order to be run.
+    
+    moo@moo-VirtualBox:~/Research/CLAP_Attack$ ./abc
+    UC Berkeley, ABC 1.01 (compiled Aug  9 2022 11:42:27)
+    abc 01> read_bench ./probing_benchmarks/c1908/SLL/c1908_SLL.bench 
+    abc 02> clap -m -c 7 -l 0.5 -k 0000010010001101111101010111101000000010010011110010010110111110011110000010100110110111
+    
+The output of this sample should be:
+    
+    KeyStore is now: {-1, -1, -1, -1, -1, -1, 0, 0, 1, 0, 0, 0, 1, 1, -1, -1, 1, 1, -1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, -1, 0, 0, 1, 1, -1, 1, -1, -1, 1, -1, 0, 1, -1, -1, 1, -1, 1, 1, 1, -1, 1, -1, 0, 1, 1, -1, -1, -1, -1, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 1, -1, -1, -1, -1, }
+
+    We found 49 of 88 total keys using 12 probes
+
+Additionally, one can find the partially unlocked `physical_clap_out.bench` file in the launch directory. The SAT attack can be run directly against this file.
+    
 ## Benchmarks
 
-All benchmarks from the ICCAD'22 manuscript can be found in the "probing_benchmarks" directory. The correct key value for each of these benchmarks is contained in the "iccad_benchmark_keys.txt" file in the probing_benchmarks directory.
+All benchmarks from the ICCAD'22 manuscript can be found in the `probing_benchmarks' directory. The correct key value for each of these benchmarks is contained in the `probing_benchmarks/iccad_benchmark_keys.txt`.
 
 ## Troubleshooting:
 
