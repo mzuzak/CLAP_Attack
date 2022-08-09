@@ -196,18 +196,25 @@ int ClapAttack_ClapAttack(Abc_Frame_t * pAbc) {
   MaxNodesConsidered = 2;
 
   // Goal: Iterate through each PI. Identify list of keys.
+  // NOTE -- THIS RUNS ALGORITHM 2, MULTI-NODE PROBING.
   if(RunHeuristic) {
 
+    // Parameter for the maximum keys inputs that can be fanned into a node before ignoring it.
     KeysConsideredCutoff = 11;
-    
+
+    // Infinite loop -- break when you run out of probe-able nodes
     while (1) {
-      
+
+      // Iteratively increase the number of keys we are willing to consider in the fan-in for a probe-able node
+      // This ensures that only the best node at a given time will be considered for probing
       for ( MaxKeysConsidered = 1; MaxKeysConsidered < KeysConsideredCutoff; MaxKeysConsidered++ ) {
 
+	// How many keys are we currently considering?
 	printf("Set Number of Keys considered to: %d\n\n", MaxKeysConsidered);
 	GlobalBsiKeys.Updated = 1;
 	fConsiderAll = 1;
 
+	// did we find any key leakage?
 	while ( GlobalBsiKeys.Updated ) {
 
 	  // Set the update var to 0. IF we change our keystore, set it back to 1 and re-loop over the tree.
@@ -223,23 +230,24 @@ int ClapAttack_ClapAttack(Abc_Frame_t * pAbc) {
 	      
 	      // Do we know this key index?
 	      if( GlobalBsiKeys.KeyValue[KeyIndex] < 0 ) {
-		//printf("Currently working on fanout for key index: %d\n", KeyIndex);
 		pCurKeyCnf = NULL;
 		NumProbes = 0;
-		
-		//ClapAttack_TraversalRecursiveHeuristic( pNtk, pPi, &GlobalBsiKeys, MaxKeysConsidered, &pCurKeyCnf, &pSatMiterList );
+
+		// Start traversal of tree -- any new key inference will set the updated variable and restart new traversal
 		ClapAttack_TraversalRecursiveHeuristic( pNtk, pPi, &GlobalBsiKeys, MaxKeysConsidered, &GlobalBsiKeys.pKeyCnf, &pSatMiterList, &NumProbes, MaxProbes );
 	      }
 	    }
 	  }
 	
-	  // Keep merging until no nodes remain...
+	  // Now we must generate our best multi-node probes. Keep merging probe points until no sensitizing inputs can be found...
 	  while ( pSatMiterList ) {
-	    
+
+	    // Find the current best sensitizing inputs based on the sensitizable nodes available
 	    ClapAttack_CombineMitersHeuristic( &pSatMiterList, &pSatMiterListNew, &MaxNodesConsidered, MaxKeysConsidered, Abc_NtkPiNum(pNtk), fConsiderAll );
 
 	    fConsiderAll = 0;
-	    
+
+	    // Did we update the nodes we are considering probing
 	    if ( pSatMiterListNew ) {
 	      // Free old miter list in favor of new one.
 	      ClapAttack_FreeSatMiterList(&pSatMiterList);
@@ -249,7 +257,7 @@ int ClapAttack_ClapAttack(Abc_Frame_t * pAbc) {
 	      MaxNodesConsidered++;
 	    } else {
 	      
-	      // Debug print
+	      // Debug print -- What is the node we are going to probe? -- Print then break out and probe it!
 	      pSatMiterListCur = pSatMiterList;
 	      while (pSatMiterListCur) {
 		printf("Sat Miter Node Pairing: ");
@@ -277,12 +285,14 @@ int ClapAttack_ClapAttack(Abc_Frame_t * pAbc) {
 	}
       }
       
-      // If there were SAT nodes, run the probe.
+      // If there were satisfying inputs identified, simulate the EOFM probe of these nodes with our inputs.
       if (pSatMiterList) {
 
+	// Note that this is gated by eliminating a sufficient portion of the key space to make the probe worthwhile
 	if (pSatMiterList->IdentifiableKeyBits >= (0.0625)) {
+
+	  // Simulate and infer from the EOFM probe.
 	  TotalProbes++;
-	  //ClapAttack_EvalMultinodeProbe ( pSatMiterList, pNtk, &GlobalBsiKeys, pOracleKey, &pCurKeyCnf, MaxKeysConsidered );
 	  ClapAttack_EvalMultinodeProbe ( pSatMiterList, pNtk, &GlobalBsiKeys, pOracleKey, &GlobalBsiKeys.pKeyCnf, MaxKeysConsidered );
 	  ClapAttack_FreeSatMiterList(&pSatMiterList);
 	  MaxNodesConsidered = 2;
@@ -300,24 +310,31 @@ int ClapAttack_ClapAttack(Abc_Frame_t * pAbc) {
 	break;
       }
     }
-  } else {
-    
-    for ( MaxKeysConsidered = 1; MaxKeysConsidered  < KeysConsideredCutoff; MaxKeysConsidered++ ) {
+  }
 
+  // NOTE -- THIS RUNS ALGORITHM 1, FIXED EOFM PROBE.
+  else {
+    
+    // Starting from nodes with a single key input in their fan-in -- look for sensitizing inputs/nodes to probe.
+    // Iteratively consider more key inputs until cutoff is reached.
+    for ( MaxKeysConsidered = 1; MaxKeysConsidered  < KeysConsideredCutoff; MaxKeysConsidered++ ) {
 
       /* Probe Point Counter  
       MaxKeysConsidered = KeysConsideredCutoff-1;
       /* End Probe Point Counter */
-      
+
+      // INFO print -- How many keys are we considering?
       printf("Set Number of Keys considered to: %d\n\n", MaxKeysConsidered);
       GlobalBsiKeys.Updated = 1;
-      
+
+      // did we get any new key leakage? If so, see if this allows further leakage to be extracted now.      
       while ( GlobalBsiKeys.Updated ) {
 	
 	// Set the update var to 0. IF we change our keystore, set it back to 1 and re-loop over the tree.
 	GlobalBsiKeys.Updated = 0;
 	MaxNodesConsidered = 1;
-	
+
+	// Iterate through fan-out of each key input looking for possible key leakage.
 	Abc_NtkForEachPi( pNtk, pPi, i ) {
 	  
 	  // Are we looking at a key input? And do we know it?-- If so, begin fanout
@@ -330,7 +347,8 @@ int ClapAttack_ClapAttack(Abc_Frame_t * pAbc) {
 	    if( GlobalBsiKeys.KeyValue[KeyIndex] < 0 ) {
 	      //printf("Currently working on fanout for key index: %d\n", KeyIndex);
 	      pCurKeyCnf = NULL;
-
+	      
+	      // Recursively traverse from the current key inputs fan-out
 	      ClapAttack_TraversalRecursive( pNtk, pPi, &GlobalBsiKeys, pOracleKey, MaxKeysConsidered, &pCurKeyCnf, &TotalProbes );
 	    }
 	  }
@@ -361,6 +379,7 @@ int ClapAttack_ClapAttack(Abc_Frame_t * pAbc) {
 
   printf("We found %d of %d total keys using %d probes\n", KeysFound, GlobalBsiKeys.NumKeys, TotalProbes );
 
+  // We are done -- cleanup and exit
   free( GlobalBsiKeys.KeyValue );
   
   // Reset markc so we can terminate without seg-fault
@@ -374,7 +393,7 @@ int ClapAttack_ClapAttack(Abc_Frame_t * pAbc) {
 // the heuristic version of this function below.
 void ClapAttack_TraversalRecursive( Abc_Ntk_t * pNtk, Abc_Obj_t * pCurNode, struct BSI_KeyData_t * pGlobalBsiKeys, int *pOracleKey, int MaxKeysConsidered, Abc_Ntk_t ** ppCurKeyCnf, int *pTotalProbes ) {
   int *pFullDi;
-  int i, j, k, m, SatStatus, MiterStatus, NumKeys, NumKnownKeys, *KeyWithFreq, *KeyNoFreq, *WrongKeyValue, KeyValue, PartialKeySatStatus, fCurKeyCnfAlloc;
+  int i, j, k, m, SatStatus, MiterStatus, NumKeys, NumKnownKeys, *KeyWithFreq, *KeyNoFreq, *WrongKeyValue, KeyValue=0, PartialKeySatStatus, fCurKeyCnfAlloc;
   Abc_Ntk_t *pNtkCone, *pNtkMiter, *pInferPartialKeyMiter, *ntkTmp;
   Abc_Obj_t * pNode, * pPi, * pKey, **ppNodeFreeList;
   char ** KeyNameTmp;
@@ -778,6 +797,7 @@ void ClapAttack_CombineMitersHeuristic( struct SatMiterList ** ppSatMiterListOld
 	  if ( (*pMaxNodesConsidered == (pMiterListCurBase->MatchedNodes+1)) && (NumKeysNew > NumKeysOld) ) {
 	    IdentifiableKeys = IdentifiableKeysOld + (1.0/(1<<(MaxKeysConsidered-1)));
 
+	    // Maintain the configuration that infers the MOST key information
 	    if ( IdentifiableKeys >= IdentifiableKeysMax ) {
 
 	      IdentifiableKeysMax = IdentifiableKeys;
@@ -956,7 +976,7 @@ void ClapAttack_TraversalRecursiveHeuristic( Abc_Ntk_t * pNtk, Abc_Obj_t * pCurN
 // Evaluate/simulate a multinode EOFM probe and infer key information leakage that will be produced.
 void ClapAttack_EvalMultinodeProbe ( struct SatMiterList *pSatMiter, Abc_Ntk_t *pNtk, struct BSI_KeyData_t * pGlobalBsiKeys, int *pOracleKey, Abc_Ntk_t ** ppCurKeyCnf, int MaxKeysConsidered ) {
   int *pFullDi;
-  int i, j, k, m, NumKeys, NumKnownKeys, *KeyWithFreq, *KeyNoFreq, *WrongKeyValue, KeyValue, PartialKeySatStatus, fCurKeyCnfAlloc, fRerunInfer;
+  int i, j, k, m, NumKeys, NumKnownKeys, *KeyWithFreq, *KeyNoFreq, *WrongKeyValue, KeyValue=0, PartialKeySatStatus, fCurKeyCnfAlloc, fRerunInfer;
   Abc_Ntk_t *pNtkCone, *pInferPartialKeyMiter, *ntkTmp;
   Abc_Obj_t * pNode, * pPi, * pKey, **ppNodeFreeList;
   char ** KeyNameTmp;
@@ -991,7 +1011,6 @@ void ClapAttack_EvalMultinodeProbe ( struct SatMiterList *pSatMiter, Abc_Ntk_t *
 	if ( !ClapAttack_SetKnownKeys( pNtkCone, pPi, pGlobalBsiKeysTmp ) ) {
 	  strcpy(KeyNameTmp[NumKeys], Abc_ObjName(pPi) );
 	  NumKeys++;
-	  //printf("Keyname: %s, KeyNum: %d\n",  Abc_ObjName(pPi), NumKeys);
 	} else {
 	  ppNodeFreeList[NumKnownKeys] = pPi;
 	  NumKnownKeys++;	    
@@ -1372,13 +1391,15 @@ int ClapAttack_UpdateGlobalKeyCnf ( Abc_Ntk_t **ppCurKeyCnf, struct BSI_KeyData_
 }
 
 // Isolate fan-in cone for a specific probe point (inclusive of probed node) for the network. 
+// Run cone command... and return the fanout cone as a separate network
 int ClapAttack_IsolateCone(Abc_Ntk_t * pNtk, Abc_Ntk_t ** ppNtkCone, Abc_Obj_t * pProbe) {
 
-  // Run cone command... and return the fanout cone as a separate network
-  int fUseAllCis, i, j, k, l, ignoreFanin, ignoreFanin2, ignoreFanin3;
-  Abc_Obj_t *pFanin, *pNode, *pHeadNode1, *pHeadNode2, *pPo, *pProbe2, *pHeadNode3, *pProbe3, *pHeadNode4, *pProbe4;
+  int fUseAllCis, j;
+  //int i, k, l, ignoreFanin, ignoreFanin2, ignoreFanin3;
+  Abc_Obj_t *pFanin, *pNode, *pPo, *pHeadNode1;
+  //Abc_Obj_t *pHeadNode2, *pProbe2, *pHeadNode3, *pProbe3, *pHeadNode4, *pProbe4;
   char PoTmpName[25];
-  Abc_Ntk_t *pNtkConeTmp, *pNtkTmp;
+  //Abc_Ntk_t *pNtkConeTmp, *pNtkTmp;
   // set defaults
   fUseAllCis = 0;
   
@@ -2260,7 +2281,7 @@ void ClapAttack_OracleSimDi(Abc_Ntk_t *pNtk, int * pDi, int NumKeys, int *KeyWit
   // Simulate Pattern 1
   int * pSimInfo1 = Abc_NtkVerifySimulatePattern( pNtk, pDi1 );
 
-  // Debig: Print pattern 1 input/output
+  // DEBUG: Print pattern 1 input/output
   //ClapAttack_PrintInp( pNtk, pDi1 );
   //ClapAttack_PrintOut( pNtk, pSimInfo1 );
 
@@ -2779,7 +2800,7 @@ void ClapAttack_CopyKeyStore( struct BSI_KeyData_t *pGlobalBsiKeys, struct BSI_K
 // necessitating this miter circuit to be constructed to identify sensitizing inputs.
 int ClapAttack_MiterPos( Abc_Ntk_t * pNtk, int fXorOr, int fXnorAnd)
 {
-  Abc_Obj_t * pNode, ** pMiterTmp, * pMiter;
+  Abc_Obj_t * pNode, ** pMiterTmp, * pMiter=NULL;
   int i, NumPos;
   Abc_Obj_t ** pPos;
   char PoTmpName[100];
@@ -2879,7 +2900,7 @@ int ClapAttack_MiterPos( Abc_Ntk_t * pNtk, int fXorOr, int fXnorAnd)
 // CLAP formulation are different.
 int ClapAttack_MiterKeys( Abc_Ntk_t * pNtk )
 {
-  Abc_Obj_t * pNode, ** pMiterTmp, * pMiter;
+  Abc_Obj_t * pNode, ** pMiterTmp, * pMiter=NULL;
   int i, j, NumKeys=0, KeyIdx1=0, KeyIdx2=0;
   Abc_Obj_t ** pKey1, **pKey2;
   char PoTmpName[100];
@@ -3004,7 +3025,7 @@ int ClapAttack_PartialKeyInferenceMiter( Abc_Ntk_t * pNtk, Abc_Ntk_t ** ppNtkMit
   Abc_Obj_t *pNode, **ppNodeFreeList;
   int i, numKeysRemoved;
   int nDigits;
-
+  
   // Initialzie free list to the number of keys present...
   ppNodeFreeList = (Abc_Obj_t **)malloc( sizeof(Abc_Obj_t *)  * (Abc_NtkPiNum(pNtk)*2) );
   numKeysRemoved = 0;
