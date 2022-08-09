@@ -22,6 +22,24 @@ The current version of ABC can be compiled with C compiler or C++ compiler.
 
 ## Running the CLAP Attack:
 
+The CLAP attack is run within the ABC synthesis tool. After successfully compiling abc, the CLAP attack can be run from the abc command line. To do so:
+
+* Launch the abc command line tool
+
+    ./abc
+
+* Read in an obfuscated benchmark circuit. Several have been provided in the probing_benchmarks directory of this repo.
+
+    read_bench <BENCHMARK_NAME>
+
+* Launch the CLAP attack against this benchmark. The usage documentation for the command is shown below:
+
+
+
+## Benchmarks
+
+All benchmarks from the ICCAD'22 manuscript can be found in the "probing_benchmarks" directory. The correct key value for each of these benchmarks is contained in the "iccad_benchmark_keys.txt" file in the probing_benchmarks directory.
+
 ## Troubleshooting:
 
  1. If compilation does not start because of the cyclic dependency check, 
@@ -53,6 +71,6 @@ If you have found the CLAP attack useful for your research, I would greatly appr
 
 Please do not hesitate to reach out to me with any questions/comments/issues regarding the repo or the work itself:
 
-Michael Zuzak <mjzeec@rit.edu>
-Assistant Professor of Computer Engineering, 
-Rochester Institute of Technology (RIT) 
+    Michael Zuzak <mjzeec@rit.edu>
+    Assistant Professor of Computer Engineering
+    Rochester Institute of Technology (RIT) 
