@@ -120,3 +120,8 @@ Please do not hesitate to reach out to me with any questions/comments/issues reg
     Michael Zuzak <mjzeec@rit.edu>
     Assistant Professor of Computer Engineering
     Rochester Institute of Technology (RIT) 
+    
+## Acknowledgements:
+
+A special thanks to the NSF for supporting this work under Grant 1953285.
+
