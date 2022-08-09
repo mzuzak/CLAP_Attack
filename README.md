@@ -11,7 +11,7 @@ This code-base contains code for the physical portion of the CLAP attack aimed a
 
 To compile the CLAP attack, clone this repo and then type `make`.
 
-## Compiling as C or C++
+### Compiling as C or C++
 
 The current version of ABC can be compiled with C compiler or C++ compiler.
 
@@ -26,15 +26,16 @@ The CLAP attack is run within the ABC synthesis tool. After successfully compili
 
 * Launch the abc command line tool
 
-    ./abc
+    
+    ```./abc```
 
 * Read in an obfuscated benchmark circuit. Several have been provided in the probing_benchmarks directory of this repo.
 
-    read_bench <BENCHMARK_NAME>
+    ```read_bench <BENCHMARK_NAME>```
 
 * Launch the CLAP attack against this benchmark. The usage notes for the command is shown below:
 
-    abc 01> clap -h
+    ```abc 01> clap -h
     usage: clap [-mclovh] -k <key> 
                    The physical portion of the CLAP attack in ABC.
         -k <key>   : input the correct oracle key value for EOFM probing simulation 
@@ -43,13 +44,13 @@ The CLAP attack is run within the ABC synthesis tool. After successfully compili
         -l <float> : minimum portion of keyspace that must be eliminated for a multi-node probe to be run [default = 0.006125]
         -o <str>   : set name of SAT solver output file from physical portion of CLAP attack [default = "physical_clap_out.bench"]
         -v         : toggle printing verbose information [default = no]
-        -h         : print the command usage 
+        -h         : print the command usage```
 
 * After attack termination, the CLAP attack outputs the known key values as well as a partially unlocked circuit in the file `physical_clap_out.bench' (unless another name was selected). This circuit can be passed directly to the open-source SAT attack toolkit from Subramanyan et al. in "Evaluating the security of logic encryption algorithms" to initiate the logical portion of the CLAP attack. By doing so, the SAT attack will build upon the physical-attack-limited keyspace produced by this tool.
     
 ## CLAP Attack Example Runs
 
-* CLAP Attack Example 1
+### CLAP Attack Example 1
 The commands below launch the fixed EOFM probing algorithm (algo. 1) for the CLAP attack against the c1908 benchmark circuit obfuscated with SLL. The attack considers nodes with no more than 7 fan-in key inputs.
     
     moo@moo-VirtualBox:~/Research/CLAP_Attack$ ./abc
@@ -65,7 +66,7 @@ The output of this sample should be:
 
 Additionally, one can find the partially unlocked `physical_clap_out.bench` file in the launch directory. The SAT attack can be run directly against this file.
     
-* CLAP Attack Example 2
+### CLAP Attack Example 2
 The commands below launch the multi-node probing algorithm (algo. 2) for the CLAP attack against the c1908 benchmark circuit obfuscated with SLL. The attack considers nodes with no more than 7 fan-in key inputs and a given multinode probe must eliminate at least 0.5% of the keyspace in order to be run.
     
     moo@moo-VirtualBox:~/Research/CLAP_Attack$ ./abc
@@ -83,7 +84,7 @@ Additionally, one can find the partially unlocked `physical_clap_out.bench` file
     
 ## Benchmarks
 
-All benchmarks from the ICCAD'22 manuscript can be found in the `probing_benchmarks' directory. The correct key value for each of these benchmarks is contained in the `probing_benchmarks/iccad_benchmark_keys.txt`.
+All benchmarks from the ICCAD'22 manuscript can be found in the `probing_benchmarks` directory. The correct key value for each of these benchmarks is contained in the `probing_benchmarks/iccad_benchmark_keys.txt`.
 
 ## Troubleshooting:
 
