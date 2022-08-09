@@ -1,51 +1,15 @@
-[![Build Status](https://travis-ci.org/berkeley-abc/abc.svg?branch=master)](https://travis-ci.org/berkeley-abc/abc)
-[![Build status](https://ci.appveyor.com/api/projects/status/7q8gopidgvyos00d?svg=true)](https://ci.appveyor.com/project/berkeley-abc/abc)
+# CLAP Attack: A Combined Logical and Physical Attack on Logic Obfuscation
 
-# ABC: System for Sequential Logic Synthesis and Formal Verification
+The CLAP attack is an open-source attack on logic obfuscation utilizing both logical and physical leakage to unlock an obfuscated circuit. The physical portion of the CLAP attack logically guides an electro-optical probe to extract key leakage through electro-optical frequency mapping (EOFM). The logical portion of the CLAP attack relies on the open-source SAT attack toolkit proposed by Subramanyan et al. from "Evaluating the security of logic encryption algorithms". An extensive overview of the CLAP attack on logic obfuscation can be found in the ICCAD'22 paper titled:
 
-ABC is always changing but the current snapshot is believed to be stable. 
+    A Combined Logical and Physical Attack on Logic Obfuscation
+    Authors: Michael Zuzak, Yuntao Liu, Isaac McDaniel, Ankur Srivastava
+
+This code-base contains code for the physical portion of the CLAP attack aimed at guiding an EOFM probe to extract key leakage from a die. It can be run entirely in simulation. This code is built on the Berkely ABC tool, which can be found at (https://people.eecs.berkeley.edu/~alanmi/abc/).
 
 ## Compiling:
 
-To compile ABC as a binary, download and unzip the code, then type `make`.
-To compile ABC as a static library, type `make libabc.a`.
-
-When ABC is used as a static library, two additional procedures, `Abc_Start()` 
-and `Abc_Stop()`, are provided for starting and quitting the ABC framework in 
-the calling application. A simple demo program (file src/demo.c) shows how to 
-create a stand-alone program performing DAG-aware AIG rewriting, by calling 
-APIs of ABC compiled as a static library.
-
-To build the demo program
-
- * Copy demo.c and libabc.a to the working directory
- * Run `gcc -Wall -g -c demo.c -o demo.o`
- * Run `g++ -g -o demo demo.o libabc.a -lm -ldl -lreadline -lpthread`
-
-To run the demo program, give it a file with the logic network in AIGER or BLIF. For example:
-
-    [...] ~/abc> demo i10.aig
-    i10          : i/o =  257/  224  lat =    0  and =   2396  lev = 37
-    i10          : i/o =  257/  224  lat =    0  and =   1851  lev = 35
-    Networks are equivalent.
-    Reading =   0.00 sec   Rewriting =   0.18 sec   Verification =   0.41 sec
-
-The same can be produced by running the binary in the command-line mode:
-
-    [...] ~/abc> ./abc
-    UC Berkeley, ABC 1.01 (compiled Oct  6 2012 19:05:18)
-    abc 01> r i10.aig; b; ps; b; rw -l; rw -lz; b; rw -lz; b; ps; cec
-    i10          : i/o =  257/  224  lat =    0  and =   2396  lev = 37
-    i10          : i/o =  257/  224  lat =    0  and =   1851  lev = 35
-    Networks are equivalent.
-
-or in the batch mode:
-
-    [...] ~/abc> ./abc -c "r i10.aig; b; ps; b; rw -l; rw -lz; b; rw -lz; b; ps; cec"
-    ABC command line: "r i10.aig; b; ps; b; rw -l; rw -lz; b; rw -lz; b; ps; cec".
-    i10          : i/o =  257/  224  lat =    0  and =   2396  lev = 37
-    i10          : i/o =  257/  224  lat =    0  and =   1851  lev = 35
-    Networks are equivalent.
+To compile the CLAP attack, clone this repo and then type `make`.
 
 ## Compiling as C or C++
 
@@ -56,26 +20,7 @@ The current version of ABC can be compiled with C compiler or C++ compiler.
  * To compile as C++ code with namespaces: make sure that `CC=g++` and `ABC_NAMESPACE` is set to
    the name of the requested namespace. For example, add `-DABC_NAMESPACE=xxx` to OPTFLAGS.
 
-## Building a shared library
-
- * Compile the code as position-independent by adding `ABC_USE_PIC=1`.
- * Build the `libabc.so` target: 
- 
-     make ABC_USE_PIC=1 libabc.so
-
-## Bug reporting:
-
-Please try to reproduce all the reported bugs and unexpected features using the latest 
-version of ABC available from https://github.com/berkeley-abc/abc
-
-If the bug still persists, please provide the following information:    
-
- 1. ABC version (when it was downloaded from GitHub)
- 1. Linux distribution and version (32-bit or 64-bit)
- 1. The exact command-line and error message when trying to run the tool
- 1. The output of the `ldd` command run on the exeutable (e.g. `ldd abc`).
- 1. Versions of relevant tools or packages used.
-
+## Running the CLAP Attack:
 
 ## Troubleshooting:
 
@@ -92,21 +37,22 @@ compile with `make ABC_USE_NO_PTHREADS=1`
     * Comment out calls to `Libs_Init()` and `Libs_End()` in "src/base/main/mainInit.c"
  1. On some systems, readline requires adding '-lcurses' to Makefile.
 
-The following comment was added by Krish Sundaresan:
+## Citations:
 
-"I found that the code does compile correctly on Solaris if gcc is used (instead of 
-g++ that I was using for some reason). Also readline which is not available by default 
-on most Sol10 systems, needs to be installed. I downloaded the readline-5.2 package 
-from sunfreeware.com and installed it locally. Also modified CFLAGS to add the local 
-include files for readline and LIBS to add the local libreadline.a. Perhaps you can 
-add these steps in the readme to help folks compiling this on Solaris."
+If you have found the CLAP attack useful for your research, I would greatly appreciate citations to the original work. 
 
-The following tutorial is kindly offered by Ana Petkovska from EPFL:
-https://www.dropbox.com/s/qrl9svlf0ylxy8p/ABC_GettingStarted.pdf
+    @inproceedings{zuzak2022clap,
+      title={A Combined Logical and Physical Attack on Logic Obfuscation},
+      author={Zuzak, Michael and Liu, Yuntao and McDaniel, Isaac and Srivastava, Ankur},
+      booktitle={IEEE/ACM International Conference on Computer-Aided Design (ICCAD)},
+      year={2022},
+      organization={ACM}
+    }
 
 ## Final remarks:
 
-Unfortunately, there is no comprehensive regression test. Good luck!                                
+Please do not hesitate to reach out to me with any questions/comments/issues regarding the repo or the work itself:
 
-This system is maintained by Alan Mishchenko <alanmi@berkeley.edu>. Consider also 
-using ZZ framework developed by Niklas Een: https://bitbucket.org/niklaseen/abc-zz (or https://github.com/berkeley-abc/abc-zz)
+Michael Zuzak <mjzeec@rit.edu>
+Assistant Professor of Computer Engineering, 
+Rochester Institute of Technology (RIT) 
