@@ -88,6 +88,8 @@ All benchmarks from the ICCAD'22 manuscript can be found in the `probing_benchma
 
 ## Troubleshooting:
 
+**NOTE:** Currently, the underscore character ("_") is a restricted character for signal/net names in benchmark files. You will see memory leaks and seg-faults if you have these in the file. If you find/replace these characters with something else (e.g., a dash "-"), you can temporarily work around this issue. This will be patched in the near future. Thank you to Likhitha Mankali (NYU) for reaching out to me with this issue!
+
  1. If compilation does not start because of the cyclic dependency check, 
 try touching all files as follows: `find ./ -type f -exec touch "{}" \;`
  1. If compilation fails because readline is missing, install 'readline' library or
