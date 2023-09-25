@@ -321,15 +321,12 @@ int ClapAttack_ClapAttack(Abc_Frame_t *pAbc, char *pKey, char *pOutFile, int alg
 
             // did we get any new key leakage? If so, see if this allows further leakage to be extracted now.
             while (GlobalBsiKeys.Updated) {
-                printf("Still looking for more key leakage...\n");
-
                 // Set the update var to 0. IF we change our keystore, set it back to 1 and re-loop over the tree.
                 GlobalBsiKeys.Updated = 0;
                 MaxNodesConsidered = 1;
 
                 // Iterate through fan-out of each key input looking for possible key leakage.
                 Abc_NtkForEachPi(pNtk, pPi, i) {
-                    printf("Looking at key input: %s\n", Abc_ObjName(pPi));
 
                     // Are we looking at a key input? And do we know it?-- If so, begin fanout
                     if (strstr(Abc_ObjName(pPi), "key")) {
@@ -395,7 +392,6 @@ void ClapAttack_TraversalRecursive(Abc_Ntk_t *pNtk, Abc_Obj_t *pCurNode, struct 
     // Initialize partial key info to NULL
     fCurKeyCnfAlloc = 0;
     NumKeys = 0;
-    printf("Entering Traversal Recursive\n");
 
     // Goal: For each PI that is a key, follow fanout until it intersects with unknown key.
     Abc_ObjForEachFanout(pCurNode, pNode, i) {
