@@ -9,6 +9,8 @@
 // (Evaluating the Security of Logic Locking)
 //
 
+#include <ctype.h> 
+
 #include "base/abc/abc.h"
 #include "base/main/main.h"
 #include "proof/fraig/fraig.h"
@@ -33,16 +35,16 @@ struct SatMiterList {
 };
 
 int ClapAttack_ClapAttackAbc(Abc_Frame_t *pAbc, char *pKey, char *pOutFile, int alg, int keysConsideredCutoff,
-                             float keyElimCutoff, int probeResolutionSize);
+                             float keyElimCutoff, int probeResolutionSize, char *pSeqCircuitFile, int unrollTimes);
 int ClapAttack_ClapAttack(Abc_Frame_t *pAbc, char *pKey, char *pOutFile, int alg, int keysConsideredCutoff,
-                          float keyElimCutoff, int probeResolutionSize);
+                            float keyElimCutoff, int probeResolutionSize, Abc_Ntk_t* pUnrolled, int unrollTimes);
 void ClapAttack_TraversalRecursive(Abc_Ntk_t *pNtk, Abc_Obj_t *pCurNode, struct BSI_KeyData_t *pGlobalBsiKeys,
                                    int *pOracleKey, int MaxKeysConsidered, Abc_Ntk_t **ppCurKeyCnf, int *pTotalProbes,
-                                   int probeResolutionSize);
+                                   int probeResolutionSize, Abc_Ntk_t* pUnrolled, int unrollTimes);
 void ClapAttack_TraversalRecursiveHeuristic(Abc_Ntk_t *pNtk, Abc_Obj_t *pCurNode, struct BSI_KeyData_t *pGlobalBsiKeys,
                                             int MaxKeysConsidered, Abc_Ntk_t **ppCurKeyCnf,
                                             struct SatMiterList **ppSatMiterList, int *pNumProbes, int MaxProbes,
-                                            int probeResolutionSize);
+                                            int probeResolutionSize, Abc_Ntk_t* pUnrolled, int unrollTimes);
 void ClapAttack_CombineMitersHeuristic(struct SatMiterList **ppSatMiterListOld, struct SatMiterList **ppSatMiterListNew,
                                        int *pMaxNodesConsidered, int MaxKeysConsidered, int MaxPiNum, int fConsiderAll);
 void ClapAttack_InterpretDiHeuristic(Abc_Ntk_t *pNtk, Abc_Ntk_t *pNtkMiter, int *pModel, int NumKeys, int *KeyWithFreq,
@@ -85,6 +87,14 @@ int ClapAttack_MiterPos(Abc_Ntk_t *pNtk, int fXorOr, int fXnorAnd);
 int ClapAttack_MiterKeys(Abc_Ntk_t *pNtk);
 int ClapAttack_PartialKeyInferenceMiter(Abc_Ntk_t *pNtk, Abc_Ntk_t **ppNtkMiter, char *CurKeyName);
 int ClapAttack_CmpKeyName(char *KeyName1, char *KeyName2, int KeyLen1, int KeyLen2);
+Abc_Ntk_t* ClapAttack_UnrollNetwork(Abc_Ntk_t *pNtk, int nFrames, int fInitial, int fVerbose);
+int ClapAttack_VerifyCircuitCompatibility(Abc_Ntk_t* pSeqNtk, Abc_Ntk_t* pLockedNtk);
+int ClapAttack_SaveNetworkToFile(Abc_Ntk_t *pNtk, const char *filename);
+Abc_Ntk_t* ClapAttack_LoadNetworkFromFile(const char *filename);
+void ClapAttack_MiterReachability(Abc_Ntk_t* pUnrolled, Abc_Ntk_t* pNtkMiter, int unrollTimes);
+int ClapAttack_ExtractCycleNumber(const char* name);
+int ClapAttack_SubstringExists(const char *mainStr, const char *subStr);
+void ClapAttack_StrToLower(char *str);
 
 ABC_NAMESPACE_IMPL_START
 
@@ -94,9 +104,12 @@ int nAvgKeyCount;
 /* End Global Var for Probe Point Counter */
 
 // CLAP Attack wrapper function -- entry point to CLAP
-int ClapAttack_ClapAttackAbc(Abc_Frame_t *pAbc, char *pKey, char *pOutFile, int alg, int keysConsideredCutoff,
-                             float keyElimCutoff, int probeResolutionSize) {
-    Abc_Ntk_t *pNtk;
+int ClapAttack_ClapAttackAbc(Abc_Frame_t *pAbc, char *pKey, char *pOutFile,
+                             int alg, int keysConsideredCutoff,
+                             float keyElimCutoff, int probeResolutionSize,
+                             char *pSeqCircuitFile, int unrollTimes) {
+    Abc_Ntk_t *pNtk, *pSeqNtk, *pUnrolled = NULL;
+
     int result;
 
     // Get the network that is read into ABC
@@ -107,14 +120,41 @@ int ClapAttack_ClapAttackAbc(Abc_Frame_t *pAbc, char *pKey, char *pOutFile, int 
         return 0;
     }
 
+    if (pSeqCircuitFile != NULL) {
+        // Load the sequential circuit
+        printf("Loading prior stage sequential file: %s\n", pSeqCircuitFile);
+        pSeqNtk = ClapAttack_LoadNetworkFromFile(pSeqCircuitFile);
+        if (pSeqNtk == NULL) {
+            printf("Failed to load file: %s\n", pSeqCircuitFile);
+            return -1; 
+        }
+
+        // Verify that the sequential and logic-locked circuits are compatible
+        if (!ClapAttack_VerifyCircuitCompatibility(pSeqNtk, pNtk)) {
+            printf("Incompatibility between sequential and logic-locked circuits detected.\n");
+            return -1;
+        }
+
+        // Unroll the sequential network
+        if ((pUnrolled = ClapAttack_UnrollNetwork(pSeqNtk, unrollTimes, 1, 1)) == NULL) {
+            printf("Failed to unroll the sequential network.\n");
+            return -1; 
+        }
+    }
+
+
     // Call the main function
-    result = ClapAttack_ClapAttack(pAbc, pKey, pOutFile, alg, keysConsideredCutoff, keyElimCutoff, probeResolutionSize);
+    result = ClapAttack_ClapAttack(
+        pAbc, pKey, pOutFile, alg, keysConsideredCutoff, keyElimCutoff,
+        probeResolutionSize, pUnrolled, unrollTimes);
 
     return result;
 }
 
-int ClapAttack_ClapAttack(Abc_Frame_t *pAbc, char *pKey, char *pOutFile, int alg, int keysConsideredCutoff,
-                          float keyElimCutoff, int probeResolutionSize) {
+int ClapAttack_ClapAttack(Abc_Frame_t *pAbc, char *pKey, char *pOutFile,
+                          int alg, int keysConsideredCutoff,
+                          float keyElimCutoff, int probeResolutionSize,
+                          Abc_Ntk_t* pUnrolled, int unrollTimes) {
     int i, j = 0, NumKeys, KeyIndex, MaxKeysConsidered, KeysFound, MaxNodesConsidered;
     Abc_Ntk_t *pNtk, *pCurKeyCnf;
     Abc_Obj_t *pPi, *pNode;
@@ -228,7 +268,8 @@ int ClapAttack_ClapAttack(Abc_Frame_t *pAbc, char *pKey, char *pOutFile, int alg
                                 // restart new traversal
                                 ClapAttack_TraversalRecursiveHeuristic(pNtk, pPi, &GlobalBsiKeys, MaxKeysConsidered,
                                                                        &GlobalBsiKeys.pKeyCnf, &pSatMiterList,
-                                                                       &NumProbes, MaxProbes, probeResolutionSize);
+                                                                       &NumProbes, MaxProbes, probeResolutionSize,
+                                                                       pUnrolled, unrollTimes);
                             }
                         }
                     }
@@ -340,7 +381,8 @@ int ClapAttack_ClapAttack(Abc_Frame_t *pAbc, char *pKey, char *pOutFile, int alg
 
                             // Recursively traverse from the current key inputs fan-out
                             ClapAttack_TraversalRecursive(pNtk, pPi, &GlobalBsiKeys, pOracleKey, MaxKeysConsidered,
-                                                          &pCurKeyCnf, &TotalProbes, probeResolutionSize);
+                                                          &pCurKeyCnf, &TotalProbes, probeResolutionSize, 
+                                                          pUnrolled, unrollTimes);
                         }
                     }
                 }
@@ -354,7 +396,7 @@ int ClapAttack_ClapAttack(Abc_Frame_t *pAbc, char *pKey, char *pOutFile, int alg
     }
 
     // Append known keys into partial key CNF for finalized circuit formulation
-    // ClapAttack_WriteMiterVerilog(GlobalBsiKeys.pKeyCnf, "global_keystore.v");
+    ClapAttack_WriteMiterVerilog(GlobalBsiKeys.pKeyCnf, "global_keystore.v");
     ClapAttack_GenSatAttackConfig(pNtk, &GlobalBsiKeys, pOutFile);
 
     // Print the final key value inferred from the attack.
@@ -381,9 +423,9 @@ int ClapAttack_ClapAttack(Abc_Frame_t *pAbc, char *pKey, char *pOutFile, int alg
 // probing is explored in the heuristic version of this function below.
 void ClapAttack_TraversalRecursive(Abc_Ntk_t *pNtk, Abc_Obj_t *pCurNode, struct BSI_KeyData_t *pGlobalBsiKeys,
                                    int *pOracleKey, int MaxKeysConsidered, Abc_Ntk_t **ppCurKeyCnf, int *pTotalProbes,
-                                   int probeResolutionSize) {
+                                   int probeResolutionSize, Abc_Ntk_t* pUnrolled, int unrollTimes) {
     int *pFullDi;
-    int i, j, k, m, SatStatus, MiterStatus, NumKeys, NumKnownKeys, *KeyWithFreq, *KeyNoFreq, *WrongKeyValue,
+    int i, j, k, m, SatStatus, MiterStatus, reachabilityStatus, NumKeys, NumKnownKeys, *KeyWithFreq, *KeyNoFreq, *WrongKeyValue,
         KeyValue = 0, PartialKeySatStatus, fCurKeyCnfAlloc;
     Abc_Ntk_t *pNtkCone, *pNtkMiter, *pInferPartialKeyMiter, *ntkTmp;
     Abc_Obj_t *pNode, *pPi, *pKey, **ppNodeFreeList;
@@ -425,6 +467,7 @@ void ClapAttack_TraversalRecursive(Abc_Ntk_t *pNtk, Abc_Obj_t *pCurNode, struct 
 
                 SatStatus = 1;
                 MiterStatus = 1;
+                reachabilityStatus = 0;
 
                 Abc_NtkForEachPi(pNtkCone, pPi, j) {
                     // Are we looking at a key input?
@@ -469,126 +512,150 @@ void ClapAttack_TraversalRecursive(Abc_Ntk_t *pNtk, Abc_Obj_t *pCurNode, struct 
                             printf("We found a valid probe point: %s with %d keys\n", Abc_ObjName(pNode), NumKeys);
                             /* End Probe Point Counter */
 
-                            /* Begin Probe Point Counter Comment */
-                            // Debug printing
-                            printf("SAT successfully located a key for keys:  ");
-                            for (k = 0; k < NumKeys; k++) printf("%s ", KeyNameTmp[k]);
-                            printf("\n\n");
-
-                            // Malloc key values from SAT to infer from
-                            KeyWithFreq = (int *)malloc(sizeof(int) * NumKeys);
-                            KeyNoFreq = (int *)malloc(sizeof(int) * NumKeys);
-
-                            ClapAttack_InterpretDiHeuristic(pNtkCone, pNtkMiter, pNtkMiter->pModel, NumKeys,
-                                                            KeyWithFreq, KeyNoFreq, &pFullDi);
-
-                            // Oracle testing. Comment out with real probe.
-                            ClapAttack_OracleSetConeKeys(pNtkCone, pFullDi, pOracleKey);
-
-                            // Increase probe count by 1
-                            (*pTotalProbes)++;
-
-                            // Determine which keys we can eliminate based on simulated probe-ing of keyed oracle.
-                            // Comment out for real-probeing case.
-                            WrongKeyValue = (int *)malloc(sizeof(int) * NumKeys);
-                            ClapAttack_OracleSimDi(pNtkCone, pFullDi, NumKeys, KeyWithFreq, KeyNoFreq, WrongKeyValue);
-
-                            // Debug print
-                            printf("Wrong KeyValue: ");
-                            for (k = 0; k < NumKeys; k++) printf(" %d", WrongKeyValue[k]);
-                            printf("\n\n");
-
-                            // Initialize partial key logic if it doesnt exist
-                            // Otherwise update it...
-                            if (NumKeys > 1) {
-                                if (!(*ppCurKeyCnf)) {
-                                    ClapAttack_InitKeyCnf(ppCurKeyCnf, NumKeys, WrongKeyValue, KeyNameTmp);
-                                    fCurKeyCnfAlloc = 1;
-                                } else {
-                                    ClapAttack_UpdateKeyCnf(ppCurKeyCnf, NumKeys, WrongKeyValue, KeyNameTmp);
+                            if(pUnrolled){
+                                Abc_Ntk_t* pUnrolledMiter = Abc_NtkDup(pUnrolled);
+                                if (!pUnrolledMiter) {
+                                    printf("Failed to duplicate the network for reachability analysis.\n");
+                                    return;
                                 }
+
+                                ClapAttack_MiterReachability(pUnrolledMiter, pNtkMiter, unrollTimes);
+
+                                // test SAT
+                                reachabilityStatus = ClapAttack_RunSat(pUnrolledMiter);
+
+                                // Free the unrolled miter
+                                Abc_NtkDelete(pUnrolledMiter);
                             }
 
-                            // Short term hack to handle case wehre key is of length 1
-                            if (NumKeys == 1) {
-                                KeyValue = (WrongKeyValue[0] + 1) % 2;
-                                ClapAttack_UpdateKey(KeyNameTmp[0], KeyValue, pGlobalBsiKeys);
-                            } else {
-                                // Evaluate partial key logic for complete key info
-                                for (k = 0; k < NumKeys; k++) {
-                                    // This requires updating the partial key info miter and attempting to infer key
-                                    // values
-                                    ClapAttack_PartialKeyInferenceMiter(*ppCurKeyCnf, &pInferPartialKeyMiter,
-                                                                        KeyNameTmp[k]);
-                                    PartialKeySatStatus = ClapAttack_RunSat(pInferPartialKeyMiter);
-                                    Abc_NtkDelete(pInferPartialKeyMiter);
 
-                                    // Initially, this will always fall through. The second time, this will always break
-                                    // unless a new key value is discovered. This is the case because it is possible
-                                    // discovering one key value will allow others to be inferred, so we must check
-                                    // again.
-                                    if (PartialKeySatStatus && (PartialKeySatStatus != -1)) {
-                                        // Again, are we SAT?
-                                        if (!ClapAttack_RunSat(*ppCurKeyCnf)) {
-                                            // Determine which key value we determined and update it
-                                            Abc_NtkForEachPi(*ppCurKeyCnf, pKey, m) {
-                                                if (!strcmp(Abc_ObjName(pKey), KeyNameTmp[k])) {
-                                                    KeyValue = (*ppCurKeyCnf)->pModel[m];
 
-                                                    // Either remove the key or set it to constant 1.
-                                                    ClapAttack_UpdateKey(KeyNameTmp[k], KeyValue, pGlobalBsiKeys);
-                                                    printf("We determined that key %s is %d\n", Abc_ObjName(pKey),
-                                                           KeyValue);
-                                                    break;
+                            if (!pUnrolled || !reachabilityStatus) {
+                                /* Begin Probe Point Counter Comment */
+                                // Debug printing
+                                printf("SAT successfully located a key for keys:  ");
+                                for (k = 0; k < NumKeys; k++) printf("%s ", KeyNameTmp[k]);
+                                printf("\n\n");
+
+                                // Malloc key values from SAT to infer from
+                                KeyWithFreq = (int *)malloc(sizeof(int) * NumKeys);
+                                KeyNoFreq = (int *)malloc(sizeof(int) * NumKeys);
+
+                                ClapAttack_InterpretDiHeuristic(pNtkCone, pNtkMiter, pNtkMiter->pModel, NumKeys,
+                                                                KeyWithFreq, KeyNoFreq, &pFullDi);
+
+                                // Oracle testing. Comment out with real probe.
+                                ClapAttack_OracleSetConeKeys(pNtkCone, pFullDi, pOracleKey);
+
+                                // Increase probe count by 1
+                                (*pTotalProbes)++;
+
+                                // Determine which keys we can eliminate based on simulated probe-ing of keyed oracle.
+                                // Comment out for real-probeing case.
+                                WrongKeyValue = (int *)malloc(sizeof(int) * NumKeys);
+                                ClapAttack_OracleSimDi(pNtkCone, pFullDi, NumKeys, KeyWithFreq, KeyNoFreq, WrongKeyValue);
+
+                                // Debug print
+                                printf("Wrong KeyValue: ");
+                                for (k = 0; k < NumKeys; k++) printf(" %d", WrongKeyValue[k]);
+                                printf("\n\n");
+
+                                // Initialize partial key logic if it doesnt exist
+                                // Otherwise update it...
+                                if (NumKeys > 1) {
+                                    if (!(*ppCurKeyCnf)) {
+                                        ClapAttack_InitKeyCnf(ppCurKeyCnf, NumKeys, WrongKeyValue, KeyNameTmp);
+                                        fCurKeyCnfAlloc = 1;
+                                    } else {
+                                        ClapAttack_UpdateKeyCnf(ppCurKeyCnf, NumKeys, WrongKeyValue, KeyNameTmp);
+                                    }
+                                }
+
+                                // Short term hack to handle case wehre key is of length 1
+                                if (NumKeys == 1) {
+                                    KeyValue = (WrongKeyValue[0] + 1) % 2;
+                                    ClapAttack_UpdateKey(KeyNameTmp[0], KeyValue, pGlobalBsiKeys);
+                                } else {
+                                    // Evaluate partial key logic for complete key info
+                                    for (k = 0; k < NumKeys; k++) {
+                                        // This requires updating the partial key info miter and attempting to infer key
+                                        // values
+                                        ClapAttack_PartialKeyInferenceMiter(*ppCurKeyCnf, &pInferPartialKeyMiter,
+                                                                            KeyNameTmp[k]);
+                                        PartialKeySatStatus = ClapAttack_RunSat(pInferPartialKeyMiter);
+                                        Abc_NtkDelete(pInferPartialKeyMiter);
+
+                                        // Initially, this will always fall through. The second time, this will always break
+                                        // unless a new key value is discovered. This is the case because it is possible
+                                        // discovering one key value will allow others to be inferred, so we must check
+                                        // again.
+                                        if (PartialKeySatStatus && (PartialKeySatStatus != -1)) {
+                                            // Again, are we SAT?
+                                            if (!ClapAttack_RunSat(*ppCurKeyCnf)) {
+                                                // Determine which key value we determined and update it
+                                                Abc_NtkForEachPi(*ppCurKeyCnf, pKey, m) {
+                                                    if (!strcmp(Abc_ObjName(pKey), KeyNameTmp[k])) {
+                                                        KeyValue = (*ppCurKeyCnf)->pModel[m];
+
+                                                        // Either remove the key or set it to constant 1.
+                                                        ClapAttack_UpdateKey(KeyNameTmp[k], KeyValue, pGlobalBsiKeys);
+                                                        printf("We determined that key %s is %d\n", Abc_ObjName(pKey),
+                                                            KeyValue);
+                                                        break;
+                                                    }
                                                 }
-                                            }
 
-                                            // Optimize out key from partial CNF
-                                            ntkTmp = Abc_NtkToLogic(*ppCurKeyCnf);
-                                            Abc_NtkDelete(*ppCurKeyCnf);
-                                            *ppCurKeyCnf = ntkTmp;
-                                            Abc_NtkForEachPi(*ppCurKeyCnf, pKey, m) {
-                                                if (!strcmp(Abc_ObjName(pKey), KeyNameTmp[k])) {
-                                                    Abc_ObjReplaceByConstant(pKey, KeyValue);
-                                                    Abc_NtkDeleteObj(pKey);
-                                                    break;
-                                                }
-                                            }
-
-                                            // Check if we optimized out all the PIs but one.
-                                            // IF so, free the partial info
-                                            ntkTmp = Abc_NtkStrash(*ppCurKeyCnf, 0, 1, 0);
-                                            Abc_NtkDelete(*ppCurKeyCnf);
-                                            *ppCurKeyCnf = ntkTmp;
-
-                                            // Cleanup
-                                            if ((Abc_NtkPiNum(*ppCurKeyCnf) < 2) && fCurKeyCnfAlloc) {
+                                                // Optimize out key from partial CNF
+                                                ntkTmp = Abc_NtkToLogic(*ppCurKeyCnf);
                                                 Abc_NtkDelete(*ppCurKeyCnf);
-                                                *ppCurKeyCnf = NULL;
-                                                break;
+                                                *ppCurKeyCnf = ntkTmp;
+                                                Abc_NtkForEachPi(*ppCurKeyCnf, pKey, m) {
+                                                    if (!strcmp(Abc_ObjName(pKey), KeyNameTmp[k])) {
+                                                        Abc_ObjReplaceByConstant(pKey, KeyValue);
+                                                        Abc_NtkDeleteObj(pKey);
+                                                        break;
+                                                    }
+                                                }
+
+                                                // Check if we optimized out all the PIs but one.
+                                                // IF so, free the partial info
+                                                ntkTmp = Abc_NtkStrash(*ppCurKeyCnf, 0, 1, 0);
+                                                Abc_NtkDelete(*ppCurKeyCnf);
+                                                *ppCurKeyCnf = ntkTmp;
+
+                                                // Cleanup
+                                                if ((Abc_NtkPiNum(*ppCurKeyCnf) < 2) && fCurKeyCnfAlloc) {
+                                                    Abc_NtkDelete(*ppCurKeyCnf);
+                                                    *ppCurKeyCnf = NULL;
+                                                    break;
+                                                }
+                                            } else {
+                                                // This should never occur... somehow the correct key was eliminated
+                                                printf("The key is somehow UNSAT... Exiting.\n\n");
+                                                exit(0);
                                             }
-                                        } else {
-                                            // This should never occur... somehow the correct key was eliminated
-                                            printf("The key is somehow UNSAT... Exiting.\n\n");
-                                            exit(0);
                                         }
                                     }
                                 }
+
+                                // Cleanup memory allocations
+                                free(WrongKeyValue);
+                                free(KeyWithFreq);
+                                free(KeyNoFreq);
+
+                                // Print off updated keystore
+                                printf("KeyStore is now: {");
+                                for (k = 0; k < pGlobalBsiKeys->NumKeys; k++) printf("%d, ", pGlobalBsiKeys->KeyValue[k]);
+                                printf("}\n\n");
+
+                                /* Probe Point Counter
+                                SatStatus = 1;
+                                /* End Probe Point Counter */
+                            
+                            }else{
+                                printf("Non-reachable input, skipping\n");
                             }
 
-                            // Cleanup memory allocations
-                            free(WrongKeyValue);
-                            free(KeyWithFreq);
-                            free(KeyNoFreq);
-
-                            // Print off updated keystore
-                            printf("KeyStore is now: {");
-                            for (k = 0; k < pGlobalBsiKeys->NumKeys; k++) printf("%d, ", pGlobalBsiKeys->KeyValue[k]);
-                            printf("}\n\n");
-
-                            /* Probe Point Counter
-                            SatStatus = 1;
-                            /* End Probe Point Counter */
                         }
                     } else {
                         printf("Mitering failed. Proceed.\n");
@@ -597,7 +664,7 @@ void ClapAttack_TraversalRecursive(Abc_Ntk_t *pNtk, Abc_Obj_t *pCurNode, struct 
                     // Delete miter and move on.
                     Abc_NtkDelete(pNtkMiter);
                 }
-            } while (!SatStatus && !MiterStatus);
+            } while (!SatStatus && !MiterStatus && !reachabilityStatus);
 
             // Cleanup and delete network for the isolated cone we
             // were traversing
@@ -611,7 +678,7 @@ void ClapAttack_TraversalRecursive(Abc_Ntk_t *pNtk, Abc_Obj_t *pCurNode, struct 
         // If we have fewer than the maximum allowable keys, continue fan-out traverse. (Recurse)
         if (NumKeys <= MaxKeysConsidered) {
             ClapAttack_TraversalRecursive(pNtk, pNode, pGlobalBsiKeys, pOracleKey, MaxKeysConsidered, ppCurKeyCnf,
-                                          pTotalProbes, probeResolutionSize);
+                                          pTotalProbes, probeResolutionSize, pUnrolled, unrollTimes);
         }
     }
 
@@ -841,7 +908,7 @@ void ClapAttack_CombineMitersHeuristic(struct SatMiterList **ppSatMiterListOld, 
 void ClapAttack_TraversalRecursiveHeuristic(Abc_Ntk_t *pNtk, Abc_Obj_t *pCurNode, struct BSI_KeyData_t *pGlobalBsiKeys,
                                             int MaxKeysConsidered, Abc_Ntk_t **ppCurKeyCnf,
                                             struct SatMiterList **ppSatMiterList, int *pNumProbes, int MaxProbes,
-                                            int probeResolutionSize) {
+                                            int probeResolutionSize, Abc_Ntk_t* pUnrolled, int unrollTimes) {
     int i, j, k, SatStatus, MiterStatus, NumKeys, NumKnownKeys, fCurKeyCnfAlloc;
     Abc_Ntk_t *pNtkCone, *pNtkMiter;
     Abc_Obj_t *pNode, *pPi, **ppNodeFreeList;
@@ -941,7 +1008,8 @@ void ClapAttack_TraversalRecursiveHeuristic(Abc_Ntk_t *pNtk, Abc_Obj_t *pCurNode
         // Recurse
         if ((NumKeys <= MaxKeysConsidered) && (*pNumProbes <= MaxProbes)) {
             ClapAttack_TraversalRecursiveHeuristic(pNtk, pNode, pGlobalBsiKeys, MaxKeysConsidered, ppCurKeyCnf,
-                                                   ppSatMiterList, pNumProbes, MaxProbes, probeResolutionSize);
+                                                   ppSatMiterList, pNumProbes, MaxProbes, probeResolutionSize,
+                                                   pUnrolled, unrollTimes);
         }
     }
 }
@@ -3017,6 +3085,324 @@ void ClapAttack_GenSatAttackConfig(Abc_Ntk_t *pNtk, struct BSI_KeyData_t *pGloba
 
     // Dump final SAT attack bench file
     Io_Write(pNtkFinal, pOutFile, IO_FILE_BENCH);
+}
+
+Abc_Ntk_t* ClapAttack_UnrollNetwork(Abc_Ntk_t *pNtk, int nFrames, int fInitial, int fVerbose) {
+    Abc_Ntk_t *pNtkTemp, *pNtkRes;
+
+
+    printf("Unrolling network: %s, nFrames: %d, fInitial: %d, fVerbose: %d\n",
+           pNtk ? pNtk->pName : "NULL", nFrames, fInitial, fVerbose);
+
+    if (pNtk == NULL) {
+        Abc_Print(-1, "Empty network.\n");
+        return NULL;
+    }
+
+    if(nFrames == 0){
+        Abc_Print(-1, "nFrames must be greater than 0.\n");
+        return NULL;
+    }
+
+    // Check if network needs to be strashed
+    if (!Abc_NtkIsStrash(pNtk)) {
+        printf("Strashing network.\n");
+        pNtkTemp = Abc_NtkStrash(pNtk, 0, 0, 0);
+        if (pNtkTemp == NULL) {
+            Abc_Print(-1, "Strashing failed.\n");
+            return NULL;
+        }
+        pNtkRes = Abc_NtkFrames(pNtkTemp, nFrames, fInitial, fVerbose);
+        Abc_NtkDelete(pNtkTemp);
+    } else {
+        printf("Network is already strashed.\n");
+        pNtkRes = Abc_NtkFrames(pNtk, nFrames, fInitial, fVerbose);
+    }
+
+    // Check if unrolling was successful
+    if (pNtkRes == NULL) {
+        Abc_Print(-1, "Unrolling the network has failed.\n");
+        return NULL;
+    }
+
+    printf("Unrolled network successfully.\n");
+
+    return pNtkRes;
+}
+
+
+int ClapAttack_VerifyCircuitCompatibility(Abc_Ntk_t* pSeqNtk, Abc_Ntk_t* pLockedNtk) {
+    Abc_Obj_t* pObjSeq;
+    Abc_Obj_t* pObjLocked;
+    int i, j;
+    char* seqOutputName;
+    char* lockedInputName;
+    int found;
+
+    printf("Verifying circuit compatibility.\n");
+
+    Abc_NtkForEachPi(pLockedNtk, pObjLocked, i) {
+        lockedInputName = Abc_ObjName(pObjLocked);
+
+        const char* key = "key";
+        int containsKey = 0; // Flag to indicate if 'key' is found in the name
+        for (const char* p = lockedInputName; *p; p++) {
+            if (tolower(*p) == tolower(key[0])) {
+                const char* q = p, *r = key;
+                while (*q && *r && tolower(*q) == tolower(*r)) {
+                    q++, r++;
+                }
+                if (!*r) {
+                    containsKey = 1; // Found 'key'
+                    break; // Exit the loop as 'key' is found
+                }
+            }
+        }
+
+        if (containsKey) {
+            continue; // Skip this input as it is labeled with 'key'
+        }
+
+        found = 0;
+
+        // For each input, search through outputs of the sequential circuit
+        Abc_NtkForEachPo(pSeqNtk, pObjSeq, j) {
+            seqOutputName = Abc_ObjName(Abc_ObjFanin0(pObjSeq));
+
+            if (strcmp(lockedInputName, seqOutputName) == 0) {
+                found = 1; // Exact match found
+                break;
+            }
+        }
+
+        if (!found) {
+            printf("Mismatch: Logic-locked input '%s' has no corresponding sequential output.\n", lockedInputName);
+            return 0; // Incompatibility found
+        }
+    }
+
+    return 1; // Compatible
+}
+
+int ClapAttack_SaveNetworkToFile(Abc_Ntk_t *pNtk, const char *filename) {
+    if (pNtk == NULL) {
+        printf("No current network to save.\n");
+        return -1;
+    }
+
+    pNtk = Abc_NtkStrash(pNtk, 0, 0, 0);
+    if (pNtk == NULL) {
+        printf("Strashing failed.\n");
+        return -1;
+    }
+
+    char tempFilename[strlen(filename) + 1]; // +1 for null terminator
+    strcpy(tempFilename, filename);
+    Io_Write(pNtk, tempFilename, IO_FILE_BENCH);
+    return 0;
+}
+
+
+Abc_Ntk_t* ClapAttack_LoadNetworkFromFile(const char *filename) {
+    int fCheck = 1; // Assuming we always want to perform the check as default
+
+    // No need for tempFilename, Io_Read can handle const char* directly
+    Abc_Ntk_t* pNtk = Io_Read((char *)filename, IO_FILE_BENCH, fCheck, 0);
+
+    if (pNtk == NULL) {
+        printf("Failed to load network from file: %s\n", filename);
+        return NULL; // Indicate failure
+    }
+
+    return pNtk; // Return the loaded network
+}
+
+
+int ClapAttack_ExtractCycleNumber(const char* name) {
+    const char* underscore = strrchr(name, '_');
+    return underscore ? atoi(underscore + 1) : -1;
+}
+
+
+void ClapAttack_MiterReachability(Abc_Ntk_t* pUnrolledMiter, Abc_Ntk_t* pNtkMiter, int unrollTimes) {
+
+    if (!Abc_NtkIsStrash(pUnrolledMiter)) {
+        printf("The network is not in AIG format. Converting...\n");
+        pUnrolledMiter = Abc_NtkStrash(pUnrolledMiter, 0, 0, 0);
+    }
+
+    Abc_Obj_t *pObj;
+    int i = 0;
+
+    char **nonKeyInputNames1 = NULL, **nonKeyInputNames2 = NULL; 
+    int *nonKeyInputTargets1 = NULL, *nonKeyInputTargets2 = NULL; 
+    int nonKeyInputCount1 = 0, nonKeyInputCount2 = 0;
+    i = 0;
+
+    // Count inputs for each cycle
+    Abc_NtkForEachPi(pNtkMiter, pObj, i) {
+        const char* objName = Abc_ObjName(pObj);
+        if (!ClapAttack_SubstringExists(objName, "key")) {
+            if (strstr(objName, "_1") != NULL) {
+                nonKeyInputCount1++;
+            } else if (strstr(objName, "_2") != NULL) {
+                nonKeyInputCount2++;
+            }
+        }
+    }
+
+    // Allocate memory based on counts
+    nonKeyInputNames1 = (char**)malloc(nonKeyInputCount1 * sizeof(char*));
+    nonKeyInputTargets1 = (int*)malloc(nonKeyInputCount1 * sizeof(int));
+    nonKeyInputNames2 = (char**)malloc(nonKeyInputCount2 * sizeof(char*));
+    nonKeyInputTargets2 = (int*)malloc(nonKeyInputCount2 * sizeof(int));
+
+    if (!nonKeyInputNames1 || !nonKeyInputNames2 || !nonKeyInputTargets1 || !nonKeyInputTargets2) {
+        perror("Memory allocation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Identifies the inputs that are not key as well as their target value
+    int j1 = 0, j2 = 0; // Indexes for each i/o set 
+    Abc_NtkForEachPi(pNtkMiter, pObj, i) {
+        const char* objName = Abc_ObjName(pObj);
+        if (!ClapAttack_SubstringExists(objName, "key")) {
+            int nameLength = strchr(objName, '_') ? (strchr(objName, '_') - objName) : strlen(objName);
+            if (strstr(objName, "_1") != NULL) {
+                nonKeyInputNames1[j1] = (char*)malloc((nameLength + 1) * sizeof(char));
+                strncpy(nonKeyInputNames1[j1], objName, nameLength);
+                nonKeyInputNames1[j1][nameLength] = '\0'; // Null-terminate
+                nonKeyInputTargets1[j1] = pNtkMiter->pModel[i];
+                j1++;
+            } else if (strstr(objName, "_2") != NULL) {
+                nonKeyInputNames2[j2] = (char*)malloc((nameLength + 1) * sizeof(char));
+                strncpy(nonKeyInputNames2[j2], objName, nameLength);
+                nonKeyInputNames2[j2][nameLength] = '\0'; // Null-terminate
+                nonKeyInputTargets2[j2] = pNtkMiter->pModel[i];
+                j2++;
+            }
+        }
+    }
+    
+    Abc_Obj_t* orResult1 = Abc_ObjNot(Abc_AigConst1(pUnrolledMiter)); // Start with 0 for OR operation within the cycle for input 1
+    Abc_Obj_t* orResult2 = Abc_ObjNot(Abc_AigConst1(pUnrolledMiter)); // Start with 0 for OR operation within the cycle for input 2
+
+    for (size_t cycle = 0; cycle < unrollTimes; cycle++) {
+        Abc_Obj_t* andResult1 = Abc_AigConst1(pUnrolledMiter); // Start with 1 for AND operation within the cycle for input 1
+        Abc_Obj_t* andResult2 = Abc_AigConst1(pUnrolledMiter); // Start with 1 for AND operation within the cycle for input 2
+        
+        // Process distinguishing input 1
+        Abc_NtkForEachPo(pUnrolledMiter, pObj, i) {
+            if (ClapAttack_ExtractCycleNumber(Abc_ObjName(pObj)) == cycle) {
+                for (size_t j = 0; j < nonKeyInputCount1; j++) {
+                    if (ClapAttack_SubstringExists(Abc_ObjName(pObj), nonKeyInputNames1[j])) {
+                        Abc_Obj_t* pSignal = Abc_ObjChild0(pObj); // Get the signal driving the PO
+                        if (nonKeyInputTargets1[j] == 0) {
+                            pSignal = Abc_ObjNot(pSignal); // Invert the signal if target is 0
+                        }
+                        andResult1 = Abc_AigAnd((Abc_Aig_t *)pUnrolledMiter->pManFunc, andResult1, pSignal); // AND with the accumulated result
+                    }
+                }
+            }
+        }
+
+        // Process distinguishing input 2
+        Abc_NtkForEachPo(pUnrolledMiter, pObj, i) {
+            if (ClapAttack_ExtractCycleNumber(Abc_ObjName(pObj)) == cycle) {
+                for (size_t j = 0; j < nonKeyInputCount2; j++) {
+                    if (ClapAttack_SubstringExists(Abc_ObjName(pObj), nonKeyInputNames2[j])) {
+                        Abc_Obj_t* pSignal = Abc_ObjChild0(pObj); // Get the signal driving the PO
+                        if (nonKeyInputTargets2[j] == 0) {
+                            pSignal = Abc_ObjNot(pSignal); // Invert the signal if target is 0
+                        }
+                        andResult2 = Abc_AigAnd((Abc_Aig_t *)pUnrolledMiter->pManFunc, andResult2, pSignal); // AND with the accumulated result
+                    }
+                }
+            }
+        }
+
+        orResult1 = Abc_AigOr((Abc_Aig_t *)pUnrolledMiter->pManFunc, orResult1, andResult1); // OR it with the accumulated result for input 1
+        orResult2 = Abc_AigOr((Abc_Aig_t *)pUnrolledMiter->pManFunc, orResult2, andResult2); // OR it with the accumulated result for input 2
+    
+        printf("\n");
+    }
+
+    Abc_Obj_t* finalResult = Abc_AigAnd((Abc_Aig_t *)pUnrolledMiter->pManFunc, orResult1, orResult2); 
+
+
+    // Collect all POs in a list/array
+    int nPos = Abc_NtkPoNum(pUnrolledMiter); // Get the number of POs
+    Abc_Obj_t **poArray = (Abc_Obj_t **)malloc(nPos * sizeof(Abc_Obj_t *)); // Allocate memory for PO pointers
+    i = 0;
+    Abc_NtkForEachPo(pUnrolledMiter, pObj, i) {
+        poArray[i] = pObj; 
+    }
+
+    // Saving fanin nodes of old outputs before deletion
+    Abc_Obj_t **oldOutputFanins = (Abc_Obj_t **)malloc(nPos * sizeof(Abc_Obj_t *));
+    int oldOutputSize = 0;
+    i = 0;
+    Abc_NtkForEachPo(pUnrolledMiter, pObj, i) {
+        // Save the fanin node driving this PO (assuming single fanin per PO)
+        oldOutputFanins[i] = Abc_ObjFanin0(pObj);
+        oldOutputSize++;
+    }
+
+    // Disconnect and delete each PO
+    for (i = 0; i < nPos; i++) {
+        pObj = poArray[i];
+        
+        // Detach PO from its fanin
+        // pFanin = Abc_ObjFanin0(pObj);
+        // Abc_ObjRemoveFanins(pObj);
+
+        // Delete the PO.
+        Abc_NtkDeleteObj(pObj);
+    }
+
+    // Free the array of PO pointers
+    free(poArray);
+
+    // // Create a new PO and connect it to finalResult
+    Abc_Obj_t* pNewPo = Abc_NtkCreatePo(pUnrolledMiter);
+    Abc_ObjAddFanin(pNewPo, finalResult);
+
+    // free(poArray); // Free the allocated memory for the PO pointers
+    for (i = 0; i < nonKeyInputCount1; i++) {
+    free(nonKeyInputNames1[i]);
+    }
+    for (i = 0; i < nonKeyInputCount2; i++) {
+        free(nonKeyInputNames2[i]);
+    }
+
+    free(oldOutputFanins);
+    free(nonKeyInputNames1);
+    free(nonKeyInputNames2);
+    free(nonKeyInputTargets1);
+    free(nonKeyInputTargets2);
+
+}
+
+
+void ClapAttack_StrToLower(char *str) {
+    while (*str) {
+        *str = tolower((unsigned char) *str);
+        str++;
+    }
+}
+
+// if subStr exists in mainStr, return true
+int ClapAttack_SubstringExists(const char *mainStr, const char *subStr) {
+    char mainLower[strlen(mainStr) + 1];
+    char subLower[strlen(subStr) + 1];
+
+    strcpy(mainLower, mainStr);
+    ClapAttack_StrToLower(mainLower);
+
+    strcpy(subLower, subStr);
+    ClapAttack_StrToLower(subLower);
+
+    return strstr(mainLower, subLower) != NULL;
 }
 
 ABC_NAMESPACE_IMPL_END
