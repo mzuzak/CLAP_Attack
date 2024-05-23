@@ -36,13 +36,16 @@ The CLAP attack is run within the ABC synthesis tool. After successfully compili
 * Launch the CLAP attack against this benchmark. The usage notes for the command is shown below:
 
     ```abc 01> clap -h
-    usage: clap [-mclovh] -k <key> 
-                   The physical portion of the CLAP attack in ABC.
+    usage: clap [-m] [-c <int>] [-l <float>] [-o <str>] -k <key> [-r <int>] [-s <seq_circuit>] [-u <unroll_times>] [-v] [-h]
+            The physical portion of the CLAP attack in ABC.
         -k <key>   : input the correct oracle key value for EOFM probing simulation 
         -m         : use multi-node probing algorithm (alg. 2) for CLAP attack, omitting this command uses fixed EOFM probe algorithm (alg. 1)
         -c <int>   : maximum number of key inputs for a node to be considered for EOFM probing [default = 7]
         -l <float> : minimum portion of keyspace that must be eliminated for a multi-node probe to be run [default = 0.006125]
         -o <str>   : set name of SAT solver output file from physical portion of CLAP attack [default = "physical_clap_out.bench"]
+        -r <int>   : set the probe resolution size [default = 1]
+        -s <seq_circuit> : specify the file for the sequential circuit stages prior to the locked cloud
+        -u <unroll_times> : specify the number of times to unroll the sequential circuit (default=5)
         -v         : toggle printing verbose information [default = no]
         -h         : print the command usage```
 
