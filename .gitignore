@@ -62,6 +62,9 @@ tags
 
 
 venv/
+__pycache__/
 logs/
 physical_clap_out.bench
 results.csv
+.vscode/
+tmp/

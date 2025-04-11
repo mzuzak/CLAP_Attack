@@ -7,16 +7,21 @@ import random
 import re
 import json
 import time
+import uuid
 from colorama import Fore, Style
 import csv
+import tempfile
 
 from match_io import parse_inputs, rename_outputs_and_nets  
 
 
-ABC_SCRIPT_DIR = "./abc_scripts/tests/"
-BASE_LOG_DIR = "./logs/"
-TMP_DIR = "./tmp"
-KEY_FILE_PATH = './probing_benchmarks/keys.json'
+script_dir = os.path.dirname(os.path.abspath(__file__))
+clap_attack_dir = os.path.dirname(script_dir)
+
+ABC_SCRIPT_DIR = f"{clap_attack_dir}/abc_scripts/tests/"
+BASE_LOG_DIR = f"{clap_attack_dir}/logs/"
+TMP_DIR = f"{clap_attack_dir}/tmp"
+KEY_FILE_PATH = f"{clap_attack_dir}/probing_benchmarks/keys.json"
 
 
 def load_keys():
@@ -36,6 +41,29 @@ def get_key(benchmark_name, locking_method):
     except:
         key = None
     return key
+
+def generate_file_base_name(locked_circuit, original_seq_circuit_file_name, unroll_factor, probe_resolution):
+    path_parts = locked_circuit.split('/')
+    benchmark_name, locking_method = path_parts[-3], path_parts[-2]
+    
+    seq_circ_suffix = os.path.basename(original_seq_circuit_file_name) if original_seq_circuit_file_name else "base"
+    unroll_suffix = f"_u{unroll_factor}" if unroll_factor else ""
+    probe_res_suffix = f"_r{probe_resolution}" if probe_resolution else ""
+    
+    base_name = f"{benchmark_name}_{locking_method}_{seq_circ_suffix}{unroll_suffix}{probe_res_suffix}"
+    return base_name
+
+def generate_log_file_path(base_name):
+    log_file_name = f"{base_name}_log.txt"
+    os.makedirs(BASE_LOG_DIR, exist_ok=True)
+    return os.path.join(BASE_LOG_DIR, log_file_name)
+
+def generate_verilog_file_path(base_name):
+    os.makedirs(os.path.join(TMP_DIR, "partial_leakage_verilog"), exist_ok=True)
+    return os.path.join(TMP_DIR, "partial_leakage_verilog", f"{base_name}.v")
+
+def generate_abc_script_path(base_name):
+    return os.path.join(TMP_DIR, f"{base_name}.abc")
 
 def parse_inputs(file_path):
     """
@@ -92,8 +120,6 @@ def rename_outputs_and_nets(target_file_path, input_names, output_file_path=None
     with open(write_path, 'w') as file:
         file.writelines(updated_content)
 
-
-
 def count_key_inputs(file_path):
     def parse_inputs(file_path, key=False):
         names = []
@@ -108,25 +134,6 @@ def count_key_inputs(file_path):
 def generate_random_key(length):
     return ''.join(random.choice('01') for _ in range(length))
 
-def generate_log_file_path(locked_circuit, original_seq_circuit_file_name, unroll_factor, probe_resolution):
-    path_parts = locked_circuit.split('/')
-    benchmark_name, locking_method = path_parts[-3], path_parts[-2]
-    
-    logs_subdir = "with_prior" if original_seq_circuit_file_name else "without_prior"
-    modified_file_name = os.path.basename(original_seq_circuit_file_name) if original_seq_circuit_file_name else "base"
-    
-    additional_info = ""
-    if unroll_factor:
-        additional_info += f"_u{unroll_factor}"
-    if probe_resolution:
-        additional_info += f"_r{probe_resolution}"
-    
-    
-    log_file_name = f"{benchmark_name}_{locking_method}_{modified_file_name}{additional_info}_log.txt"
-    logs_dir = os.path.join(BASE_LOG_DIR, logs_subdir)
-    os.makedirs(logs_dir, exist_ok=True)
-    
-    return os.path.join(logs_dir, log_file_name)
 
 def prepare_abc_script_content(locked_circuit, custom_key, multi_node, max_key_inputs, key_space_min, sat_solver_output, probe_resolution, verbose, seq_circuit_file, unroll_factor):
     command_components = ["read_bench {}".format(locked_circuit)]
@@ -153,62 +160,77 @@ def count_partial_key_leakage(verilog_file_path):
     key_pattern = re.compile(r'keyinput\d+')
     found_keys = set()
 
-    with open(verilog_file_path, 'r') as file:
-        for line in file:
-            found_keys.update(key_pattern.findall(line))
+    if os.path.exists(verilog_file_path):
+        with open(verilog_file_path, 'r') as file:
+            for line in file:
+                found_keys.update(key_pattern.findall(line))
 
-    os.remove(verilog_file_path)
+        os.remove(verilog_file_path)
+
+    else:
+        return 0
 
     return len(found_keys)
 
 
-def execute_abc_script_with_logging(script_content, log_file_path):
-    """
-    Executes the ABC script and logs its content along with ABC's output.
-    Searches the output for specific result patterns and measures execution time.
-    """
-    # with tempfile.NamedTemporaryFile(mode='w+', delete=False, dir=TMP_DIR, suffix=".abc") as tmp_script:
-    #     tmp_script.write(script_content)
-    #     tmp_script_path = tmp_script.name
-
-
-    # Replace temptfile with a fixed file
-    tmp_script_path = os.path.join(TMP_DIR, "tmp_script.abc")
-    with open(tmp_script_path, "w") as tmp_script:
+def execute_abc_script_with_logging(script_content, script_path, log_file_path, verilog_file_path):
+    with open(script_path, "w") as tmp_script:
         tmp_script.write(script_content)
     
-    print(script_content)
-    start_time = time.time() 
-    result = subprocess.run(["./abc", "-f", tmp_script_path], capture_output=True, text=True)
-    # result = subprocess.run(["ls"], capture_output=True, text=True)
+    # print(f"Running ABC script:\n{script_content}")
+    start_time = time.time()
+    print(f"Executing: './abc -f {script_path}'")
+    result = subprocess.run(["./abc", "-f", script_path], capture_output=True, text=True)
     execution_time = time.time() - start_time
 
     stdout_output = result.stdout
     stderr_output = result.stderr
 
-    search_pattern = r"We found (\d+) of (\d+) total keys using (\d+) probes"
-    match = re.search(search_pattern, stdout_output)
+
+
+    full_key_pattern = r"We found (\d+) of (\d+) total keys using (\d+) probes"
+    partial_key_pattern = r"Partial key leakage: (\d+)"
+    verilog_file_pattern = r"Verilog file: (.*)"
+
+    full_key_match = re.search(full_key_pattern, stdout_output)
+    partial_key_match = re.search(partial_key_pattern, stdout_output)
+    verilog_file_match = re.search(verilog_file_pattern, stdout_output)
+
+    if verilog_file_match:
+        generated_verilog_path = verilog_file_match.group(1)
+        if os.path.exists(generated_verilog_path):
+            os.rename(generated_verilog_path, verilog_file_path)
+            print(f"Verilog file renamed to: {verilog_file_path}")
+    else: 
+        print(f"{Fore.RED}No verilog file found in the output.{Style.RESET_ALL}")
 
     with open(log_file_path, "w") as log_file:
         log_file.write(f"\nABC Script Commands:\n{script_content}\n\n--- ABC Output ---\n")
-        log_file.write(stdout_output)  
+        log_file.write(stdout_output)
         if stderr_output:
             log_file.write("\n--- ABC Errors ---\n")
-            log_file.write(stderr_output) 
+            log_file.write(stderr_output)
         log_file.write(f"\nExecution Time: {execution_time} seconds\n")
 
-        if match:
-            log_file.write(f"\nResults: {match.group(0)}\n")  
+        if full_key_match:
+            log_file.write(f"\nResults: {full_key_match.group(0)}\n")
         else:
-            log_file.write("\nNo specific results pattern found in the output.\n")
+            log_file.write("\nNo specific full key results pattern found in the output.\n")
             print(f"{Fore.RED}No specific results pattern found in the output.{Style.RESET_ALL}")
 
-    os.remove(tmp_script_path)
+        if partial_key_match:
+            log_file.write(f"\nPartial Key Leakage: {partial_key_match.group(1)}\n")
+        else:
+            log_file.write("\nNo specific partial key leakage pattern found in the output.\n")
+
+    # os.remove(script_path)
     
     return {
         "execution_time": execution_time,
-        "full_key_leakage": match.group(0) if match else "No results found",
+        "full_key_leakage": full_key_match.group(0) if full_key_match else "No results found",
+        "partial_key_leakage": int(partial_key_match.group(1)) if partial_key_match else 0
     }
+    
 
 
 def append_results_to_csv(results, csv_path='results.csv'):
@@ -280,26 +302,26 @@ def main():
             key = generate_random_key(key_input_count)
             key_source = "auto-generated"
 
-
-
     if args.seq_prior_circuit:
         # Rename the outputs and nets of the sequential circuit to match the locked circuit
         original_seq_circ_file_name = os.path.basename(args.seq_prior_circuit)
         input_names = parse_inputs(args.locked_circuit)
-        # _, modified_seq_circ_path = tempfile.mkstemp(dir=TMP_DIR, suffix=".bench")
-        # replace temp file with a fixed file
-        modified_seq_circ_path = os.path.join(TMP_DIR, f"{original_seq_circ_file_name}_modified.bench")
+        modified_seq_circ_path = os.path.join(TMP_DIR, f"{uuid.uuid4()}_{original_seq_circ_file_name}_modified.bench")
 
         rename_outputs_and_nets(args.seq_prior_circuit, input_names, modified_seq_circ_path)
 
-    log_file_path = generate_log_file_path(args.locked_circuit, original_seq_circ_file_name, args.unroll_factor, args.probe_resolution)
-    
+    base_name = generate_file_base_name(args.locked_circuit, original_seq_circ_file_name, args.unroll_factor, args.probe_resolution)
+    log_file_path = generate_log_file_path(base_name)
+    verilog_file_path = generate_verilog_file_path(base_name)
+    script_path = generate_abc_script_path(base_name)
+
     script_content = prepare_abc_script_content(args.locked_circuit, key, args.multi_node, args.max_key_inputs, args.key_space_min, args.sat_solver_output, args.probe_resolution, args.verbose, modified_seq_circ_path, args.unroll_factor)
 
-    results = execute_abc_script_with_logging(script_content, log_file_path)
+    results = execute_abc_script_with_logging(script_content, script_path, log_file_path, verilog_file_path)
+    
 
-    partial_leakage_count = count_partial_key_leakage("global_keystore.v")
-    results['partial_key_leakage'] = partial_leakage_count
+    # partial_count = count_partial_key_leakage('./global_keystore.v')
+    # print(f"Partial key leakage: {partial_count}")
     
     append_results_to_csv({
         'locked_circuit': os.path.basename(args.locked_circuit),
@@ -310,7 +332,6 @@ def main():
         'key': key,
         'key_source': key_source,
     })
-
 
 if __name__ == "__main__":
     main()
